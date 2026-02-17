@@ -20,11 +20,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/carloslfu/cloding"
+    "url": "https://github.com/claudlos/cloding"
   },
-  "homepage": "https://github.com/carloslfu/cloding#readme",
+  "homepage": "https://github.com/claudlos/cloding#readme",
   "bugs": {
-    "url": "https://github.com/carloslfu/cloding/issues"
+    "url": "https://github.com/claudlos/cloding/issues"
   },
   "engines": {
     "node": ">=18.0.0"
