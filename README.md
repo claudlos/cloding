@@ -2,7 +2,7 @@
 
 **Claude Code with any model via OpenRouter.**
 
-Opus costs $15/$75 per Mtok. Qwen 3 Coder costs $0.07/$0.30. That's 250x cheaper. You'd be an idiot not to use it.
+Claude Code costs $5/$25 per Mtok. Qwen 3 Coder costs $0.07/$0.30. That's 71x cheaper on input, 83x cheaper on output. You'd be an idiot not to use it.
 
 Cloding lets you run Claude Code — tools, file editing, terminal access, the whole thing — with any OpenRouter model. Same experience, fraction of the cost. Zero dependencies, zero overhead. It sets 4 env vars and spawns `claude`. That's it.
 
@@ -17,7 +17,7 @@ export OPENROUTER_API_KEY=sk-or-v1-your-key-here
 cloding
 ```
 
-You're now running Claude Code with Qwen 3 Coder at **$0.07/Mtok input** instead of $15/Mtok.
+You're now running Claude Code with Qwen 3 Coder at **$0.07/Mtok input** instead of $5/Mtok.
 
 ## Usage
 
@@ -39,16 +39,16 @@ cloding --allowedTools Read,Write,Bash
 
 ## Models & Cost
 
-| Shortcut | Model | Input $/Mtok | Output $/Mtok | vs Opus |
-|----------|-------|-------------|---------------|---------|
-| `qwen` | Qwen 3 Coder | $0.07 | $0.30 | **250x cheaper** |
-| `deepseek` | DeepSeek Coder V3 | $0.14 | $0.28 | **268x cheaper** |
-| `haiku` | Claude Haiku 4.5 | $0.80 | $4.00 | 19x cheaper |
-| `gemini` | Gemini 2.5 Pro | $1.25 | $10.00 | 8x cheaper |
-| `sonnet` | Claude Sonnet 4 | $3.00 | $15.00 | 5x cheaper |
-| `opus` | Claude Opus 4.6 | $15.00 | $75.00 | baseline |
+| Shortcut | Model | Input $/Mtok | Output $/Mtok | vs Claude Code |
+|----------|-------|-------------|---------------|----------------|
+| `qwen` | Qwen 3 Coder | $0.07 | $0.30 | **71x cheaper** |
+| `deepseek` | DeepSeek Coder V3 | $0.14 | $0.28 | **36x cheaper** |
+| `haiku` | Claude Haiku 4.5 | $0.80 | $4.00 | 6x cheaper |
+| `gemini` | Gemini 2.5 Pro | $1.25 | $10.00 | 4x cheaper |
+| `sonnet` | Claude Sonnet 4 | $3.00 | $15.00 | 1.7x cheaper |
+| `opus` | Claude Opus 4.6 | $15.00 | $75.00 | 3x more expensive |
 
-> A 30-minute coding session that costs ~$5 with Opus costs ~$0.02 with Qwen. Same tools, same workflow.
+> A 30-minute coding session that costs ~$5 with Claude Code costs ~$0.07 with Qwen. Same tools, same workflow.
 
 ## Docker Mode
 
