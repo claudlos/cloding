@@ -1,5 +1,6 @@
 """Pipeline sequencer: executes stages, manages review loop, checkpoints."""
 
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -304,7 +305,6 @@ class Pipeline:
 
         # Search more broadly: look for "PASS" as a standalone word
         # Common patterns: "PASS", "**PASS**", "Verdict: PASS", "## PASS"
-        import re
         pass_pattern = re.compile(
             r"(?:^|\b|[*#:\s])PASS(?:\b|[*#:\s]|$)", re.MULTILINE | re.IGNORECASE
         )

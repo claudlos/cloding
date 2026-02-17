@@ -144,4 +144,7 @@ class LocalRunner(BaseRunner):
             )
         except OSError as ose:
             self.logger.error("Failed to run Claude Code: %s", ose)
+            if proc and proc.returncode is None:
+                proc.kill()
+                await proc.wait()
             raise StageError(f"Local runner failed: {ose}") from ose

@@ -81,7 +81,7 @@ def main() -> None:
     try:
         from dotenv import load_dotenv
         load_dotenv()
-    except ImportError:
+    except ModuleNotFoundError:
         pass  # dotenv is optional
 
     parser = build_parser()

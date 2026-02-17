@@ -14,7 +14,7 @@ services:
       dockerfile: Dockerfile
     image: cloding:latest
     environment:
-      - ANTHROPIC_BASE_URL=https://openrouter.ai/api
+      - ANTHROPIC_BASE_URL=https://openrouter.ai/api/v1
       - ANTHROPIC_AUTH_TOKEN=${OPENROUTER_API_KEY}
       - ANTHROPIC_API_KEY=
       - ANTHROPIC_MODEL=${CLODING_MODEL:-qwen/qwen3-coder-next}

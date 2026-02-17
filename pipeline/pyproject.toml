@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cloding"
-version = "0.1.0"
+version = "0.1.1"
 description = "Cloding — Claude Code with any model via OpenRouter. Multi-model pipeline orchestrator."
 requires-python = ">=3.11"
 dependencies = [
@@ -29,8 +29,10 @@ line-length = 100
 ignore = ["E501", "B008"]
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 addopts = "-p no:anchorpy"
+
+[tool.pytest-asyncio]
+mode = "auto"
 
 [tool.coverage.run]
 source = ["osq"]

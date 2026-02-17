@@ -407,8 +407,9 @@ function dockerBuild() {
   if (!dockerDir) {
     console.error(
       "Error: Dockerfile not found.\n\n" +
-        "Expected at: pipeline/docker/Dockerfile\n" +
-        "Make sure you have the full cloding package with Docker support.\n"
+        "Docker mode requires the full repository (not the npm package).\n" +
+        "  git clone https://github.com/claudlos/cloding\n" +
+        "  cd cloding && cloding docker build\n"
     );
     process.exit(1);
   }
@@ -830,25 +831,16 @@ function main() {
     return;
   }
 
-  // Validate API key
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    console.error(
-      "Error: OPENROUTER_API_KEY not set.\n\n" +
-        "Get your key at https://openrouter.ai/keys\n" +
-        "Then either:\n" +
-        "  1. Create a .env file:  OPENROUTER_API_KEY=sk-or-v1-...\n" +
-        "  2. Set it:  export OPENROUTER_API_KEY=sk-or-v1-...\n"
-    );
-    process.exit(1);
-  }
-
   // ── Pipeline mode ──
+  // Delegated early so --dry-run works without an API key
   if (args.pipeline) {
     const pipelineDir = path.join(__dirname, "..", "pipeline");
     if (!fs.existsSync(pipelineDir)) {
       console.error(
-        "Error: Pipeline not found. Install the full cloding package with Python support."
+        "Error: Pipeline not found.\n\n" +
+          "Pipeline mode requires the full repository (not the npm package).\n" +
+          "  git clone https://github.com/claudlos/cloding\n" +
+          "  cd cloding/pipeline && pip install -e .\n"
       );
       process.exit(1);
     }
@@ -856,9 +848,9 @@ function main() {
     const pythonArgs = ["-m", "osq", ...args.pipelineArgs];
     console.log(`Running pipeline: python ${pythonArgs.join(" ")}`);
 
-    // Pipeline inherits env but needs OpenRouter vars and CLAUDECODE stripped
+    // Pipeline inherits env but needs CLAUDECODE stripped.
+    // API key may be absent for --dry-run; Python side validates when needed.
     const pipelineEnv = { ...process.env };
-    pipelineEnv.OPENROUTER_API_KEY = apiKey;
     delete pipelineEnv.CLAUDECODE;
 
     const child = spawn("python", pythonArgs, {
@@ -875,6 +867,19 @@ function main() {
       process.exit(1);
     });
     return;
+  }
+
+  // Validate API key (pipeline mode handles its own validation)
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    console.error(
+      "Error: OPENROUTER_API_KEY not set.\n\n" +
+        "Get your key at https://openrouter.ai/keys\n" +
+        "Then either:\n" +
+        "  1. Create a .env file:  OPENROUTER_API_KEY=sk-or-v1-...\n" +
+        "  2. Set it:  export OPENROUTER_API_KEY=sk-or-v1-...\n"
+    );
+    process.exit(1);
   }
 
   // ── Simple mode: launch claude with OpenRouter ──

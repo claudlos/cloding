@@ -57,6 +57,7 @@ class BaseRunner(ABC):
         # Try to find JSON object at end of output
         brace_depth = 0
         json_start = -1
+        json_end = -1
         for i in range(len(stdout) - 1, -1, -1):
             if stdout[i] == "}":
                 if brace_depth == 0:
@@ -68,7 +69,7 @@ class BaseRunner(ABC):
                     json_start = i
                     break
 
-        if json_start >= 0:
+        if json_start >= 0 and json_end > json_start:
             try:
                 return json.loads(stdout[json_start:json_end])
             except json.JSONDecodeError:

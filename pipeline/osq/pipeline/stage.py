@@ -31,9 +31,14 @@ class Stage(ABC):
         env: dict[str, str] = {}
         api_key = os.environ.get(self.model_config.api_key_env, "")
 
+        if not api_key:
+            self.logger.warning(
+                "API key env '%s' is empty or not set", self.model_config.api_key_env
+            )
+
         if self.model_config.provider == "openrouter":
             env["ANTHROPIC_BASE_URL"] = (
-                self.model_config.base_url or "https://openrouter.ai/api"
+                self.model_config.base_url or "https://openrouter.ai/api/v1"
             )
             env["ANTHROPIC_AUTH_TOKEN"] = api_key
             env["ANTHROPIC_API_KEY"] = ""

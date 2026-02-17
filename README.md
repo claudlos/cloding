@@ -54,7 +54,7 @@ cloding --allowedTools Read,Write,Bash
 
 When you run Claude Code, it has full access to your machine — your files, your terminal, your `.env`, your SSH keys, everything. It's an LLM agent with root-level power and nothing about that is secure. Nobody seems to care that these models are looking at all your stuff and running wild.
 
-Docker mode puts it in a box. The model can only touch the workspace you mount and nothing else. It can't read your secrets, wreck your system, or do anything outside the container. Non-root user, no access to your host filesystem, network isolated.
+Docker mode puts it in a box. The model can only touch the workspace you mount and nothing else. It can't read your secrets, wreck your system, or do anything outside the container. Non-root user, no access to your host filesystem, resource-limited. Containers still have outbound network access (needed for API calls to OpenRouter).
 
 ```bash
 cloding docker build                    # Build image (one-time)

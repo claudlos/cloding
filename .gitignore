@@ -50,5 +50,8 @@ htmlcov/
 .coverage
 coverage.xml
 
+# pytest
+.pytest_cache/
+
 # mypy
 .mypy_cache/

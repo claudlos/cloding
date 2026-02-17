@@ -1,5 +1,6 @@
 """Top-level orchestrator: loads config, builds pipeline, runs it."""
 
+import re
 from pathlib import Path
 
 from osq.core.config import PipelineConfig, load_config
@@ -90,6 +91,10 @@ async def run_pipeline(
     # Handle resume state
     resume_state = None
     if resume_from and run_id:
+        if not re.fullmatch(r"[\w\-]+", run_id):
+            raise ValueError(
+                f"Invalid run_id '{run_id}': must be alphanumeric, hyphens, or underscores"
+            )
         checkpoint = Path("data/runs") / run_id / "state.json"
         if checkpoint.exists():
             resume_state = PipelineState.load_checkpoint(checkpoint)

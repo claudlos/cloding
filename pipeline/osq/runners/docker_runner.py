@@ -221,13 +221,18 @@ class DockerRunner(BaseRunner):
 
     @staticmethod
     async def ensure_network(network: str = "cloding-net") -> None:
-        """Create Docker network if not present (ignores if exists)."""
+        """Create Docker network if not present."""
+        logger = get_logger("docker_runner", category="DOCKER")
         proc = await _launch(
             "docker", "network", "create", network,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        await proc.communicate()
+        _, stderr_bytes = await proc.communicate()
+        if proc.returncode != 0:
+            stderr = stderr_bytes.decode(errors="replace")
+            if "already exists" not in stderr:
+                raise DockerError(f"Failed to create Docker network '{network}': {stderr}")
 
     @staticmethod
     async def cleanup_containers(prefix: str = "cloding-worker") -> int:

@@ -72,7 +72,13 @@ class PipelineState:
     def load_checkpoint(cls, path: Path) -> "PipelineState":
         """Deserialize state from JSON checkpoint."""
         data = json.loads(path.read_text(encoding="utf-8"))
-        return cls(**data)
+        try:
+            return cls(**data)
+        except TypeError as err:
+            raise ValueError(
+                f"Corrupted checkpoint at {path}: {err}. "
+                f"Delete the checkpoint and restart the pipeline."
+            ) from err
 
     def set_coding_tasks(self, tasks: list[CodingTask]) -> None:
         """Store coding tasks as dicts for JSON serialization."""
