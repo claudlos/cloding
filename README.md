@@ -27,7 +27,7 @@ cloding -m haiku                     # Use Claude Haiku 4.5
 cloding -m sonnet                    # Use Claude Sonnet 4
 cloding -m opus                      # Use Claude Opus 4.6
 cloding -m deepseek                  # Use DeepSeek Coder V3
-cloding -p "fix the login bug"       # Non-interactive, single prompt
+cloding -p "add dark mode"           # Non-interactive, single prompt
 cloding --list-models                # Show all models with pricing
 cloding -m meta-llama/llama-4-scout  # Any OpenRouter model ID works
 ```
