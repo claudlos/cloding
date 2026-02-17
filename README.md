@@ -1,8 +1,10 @@
 # ⚡ cloding
 
-**Claude Code with any model. 70x cheaper.**
+**Claude Code with any model via OpenRouter.**
 
-Use Claude Code's full power — tools, file editing, terminal access — with Qwen, Haiku, DeepSeek, or any OpenRouter model. Same experience, fraction of the cost.
+Opus costs $15/$75 per Mtok. Qwen 3 Coder costs $0.07/$0.30. That's 250x cheaper. You'd be an idiot not to use it.
+
+Cloding lets you run Claude Code — tools, file editing, terminal access, the whole thing — with any OpenRouter model. Same experience, fraction of the cost. Zero dependencies, zero overhead. It sets 4 env vars and spawns `claude`. That's it.
 
 ```
 npm install -g cloding
@@ -10,22 +12,12 @@ npm install -g cloding
 
 ## Quick Start
 
-1. **Get an OpenRouter API key** at [openrouter.ai/keys](https://openrouter.ai/keys)
+```bash
+export OPENROUTER_API_KEY=sk-or-v1-your-key-here
+cloding
+```
 
-2. **Set your key:**
-   ```bash
-   export OPENROUTER_API_KEY=sk-or-v1-your-key-here
-   ```
-   Or create a `.env` file in your project:
-   ```
-   OPENROUTER_API_KEY=sk-or-v1-your-key-here
-   ```
-
-3. **Start coding:**
-   ```bash
-   cloding
-   ```
-   That's it. You're now running Claude Code with Qwen 3 Coder at **$0.07/Mtok input** instead of $15/Mtok.
+You're now running Claude Code with Qwen 3 Coder at **$0.07/Mtok input** instead of $15/Mtok.
 
 ## Usage
 
@@ -34,17 +26,18 @@ cloding                              # Interactive session with Qwen (default)
 cloding -m haiku                     # Use Claude Haiku 4.5
 cloding -m sonnet                    # Use Claude Sonnet 4
 cloding -m opus                      # Use Claude Opus 4.6
+cloding -m deepseek                  # Use DeepSeek Coder V3
 cloding -p "fix the login bug"       # Non-interactive, single prompt
 cloding --list-models                # Show all models with pricing
+cloding -m meta-llama/llama-4-scout  # Any OpenRouter model ID works
 ```
 
-Pass any Claude Code flags through:
+All Claude Code flags pass through:
 ```bash
 cloding --allowedTools Read,Write,Bash
-cloding --model qwen/qwen3-coder-next --verbose
 ```
 
-## Models & Cost Comparison
+## Models & Cost
 
 | Shortcut | Model | Input $/Mtok | Output $/Mtok | vs Opus |
 |----------|-------|-------------|---------------|---------|
@@ -55,110 +48,54 @@ cloding --model qwen/qwen3-coder-next --verbose
 | `sonnet` | Claude Sonnet 4 | $3.00 | $15.00 | 5x cheaper |
 | `opus` | Claude Opus 4.6 | $15.00 | $75.00 | baseline |
 
-> **Real example:** A 30-minute coding session that costs ~$5 with Opus costs ~$0.02 with Qwen. Same tools, same workflow.
+> A 30-minute coding session that costs ~$5 with Opus costs ~$0.02 with Qwen. Same tools, same workflow.
 
-You can also pass any OpenRouter model ID directly:
+## Docker Mode
+
+When you run Claude Code, it has full access to your machine — your files, your terminal, your `.env`, your SSH keys, everything. It's an LLM agent with root-level power and nothing about that is secure. Nobody seems to care that these models are looking at all your stuff and running wild.
+
+Docker mode puts it in a box. The model can only touch the workspace you mount and nothing else. It can't read your secrets, wreck your system, or do anything outside the container. Non-root user, no access to your host filesystem, network isolated.
+
 ```bash
-cloding -m meta-llama/llama-4-scout
+cloding docker build                    # Build image (one-time)
+cloding docker shell                    # Interactive session
+cloding docker run "fix the bug"        # Run a prompt
+cloding docker run -m haiku "prompt"    # Specific model
+cloding docker run -w ./myproject       # Mount workspace
+cloding docker run --memory 4g --cpus 2 # Resource limits
+cloding docker status                   # Show running containers
+cloding docker stop                     # Stop all containers
+cloding docker clean                    # Remove stopped containers
 ```
 
-## How It Works
+Your workspace gets mounted read-write at `/workspace` inside the container. That's the only thing the model can touch.
 
-Cloding is a thin wrapper around Claude Code. It:
+## Pipeline Mode
 
-1. Reads your OpenRouter API key
-2. Sets the right environment variables (`ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`, etc.)
-3. Launches `claude` with those vars
+Multi-stage coding pipeline: Plan → Explore → Code → Review, with parallel fan-out. Assign different models to different stages — Opus for planning, Qwen for coding.
 
-That's it. No proxy, no middleware, no overhead. Your prompts go directly from Claude Code → OpenRouter → model.
+```bash
+cd pipeline && pip install -e .    # Requires Python 3.11+
+cloding pipeline "Add auth" --workspace ./myapp --no-docker
+cloding pipeline -c configs/qwen-fanout.yaml "Refactor the DB layer"
+```
+
+8 pipeline configs included: default, quick, fan-out, opus-plan+qwen-code, human-in-the-loop, and more.
+
+## Configuration
+
+```bash
+export OPENROUTER_API_KEY=sk-or-v1-your-key-here   # Required
+export CLODING_DEFAULT_MODEL=qwen                    # Optional (default: qwen)
+```
+
+Add custom model shortcuts by editing `models.json`.
 
 ## Prerequisites
 
 - **Node.js 18+**
-- **Claude Code** installed: `npm install -g @anthropic-ai/claude-code`
-- **OpenRouter API key** from [openrouter.ai](https://openrouter.ai)
-
-## Configuration
-
-### Default model
-
-Set your preferred default model:
-```bash
-export CLODING_DEFAULT_MODEL=haiku
-```
-
-### Custom models
-
-Edit `models.json` to add your own model shortcuts:
-```json
-{
-  "mymodel": {
-    "id": "provider/model-name",
-    "name": "My Custom Model",
-    "in": 1.00,
-    "out": 5.00,
-    "description": "My custom model via OpenRouter"
-  }
-}
-```
-
-## Docker Mode
-
-Run Claude Code in isolated Docker containers. Each container gets its own environment with resource limits and security isolation.
-
-```bash
-# Build the image first (one-time)
-cloding docker build
-
-# Run a prompt in a container
-cloding docker run "Add error handling to src/api.js"
-
-# Interactive session in Docker
-cloding docker shell
-
-# Use a specific model
-cloding docker run -m haiku "Fix the tests"
-
-# Mount a specific workspace
-cloding docker shell -w ./myproject
-
-# Manage containers
-cloding docker status    # Show running containers
-cloding docker stop      # Stop all containers
-cloding docker clean     # Remove stopped containers
-```
-
-Options for `run` and `shell`:
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `-m, --model` | qwen | Model shortcut or OpenRouter ID |
-| `-w, --workspace` | cwd | Local directory to mount |
-| `--memory` | 2g | Container memory limit |
-| `--cpus` | 1.0 | Container CPU limit |
-| `--name` | auto | Custom container name |
-| `--no-rm` | off | Keep container after exit |
-
-Containers run as a non-root `coder` user with resource limits. Your workspace is mounted read-write at `/workspace` inside the container.
-
-## Pipeline Mode (Advanced)
-
-For multi-stage coding pipelines (Plan → Explore → Code → Review) with parallel task fan-out:
-
-```bash
-# Requires Python 3.11+
-cd pipeline && pip install -e .
-
-# Run a pipeline
-cloding pipeline "Add authentication to the API" --workspace ./myapp --no-docker
-cloding pipeline -c configs/qwen-fanout.yaml "Refactor the database layer"
-```
-
-Pipeline configs let you assign different models to different stages — e.g., Opus for planning, Qwen for coding.
-
-## Why?
-
-70-80% of coding tasks don't need the smartest model. Searching files, writing boilerplate, making edits, running tests — Qwen handles all of this perfectly through Claude Code's tools. Save the expensive models for architecture and complex reasoning.
+- **Claude Code**: `npm install -g @anthropic-ai/claude-code`
+- **OpenRouter API key**: [openrouter.ai/keys](https://openrouter.ai/keys)
 
 ## License
 
