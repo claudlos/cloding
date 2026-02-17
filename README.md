@@ -2,7 +2,7 @@
 
 **Claude Code with any model via OpenRouter.**
 
-Claude Code costs $5/$25 per Mtok. Qwen 3 Coder costs $0.07/$0.30. That's 71x cheaper on input, 83x cheaper on output. You'd be an idiot not to use it.
+Claude Code costs $5/$25 per Mtok. Qwen 3 Coder costs $0.07/$0.30. That's 71x cheaper on input, 83x cheaper on output. You'd be an idiot not to use it at scale.
 
 Cloding lets you run Claude Code — tools, file editing, terminal access, the whole thing — with any OpenRouter model. Same experience, fraction of the cost. Zero dependencies, zero overhead. It sets 4 env vars and spawns `claude`. That's it.
 
