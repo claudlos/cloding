@@ -1,0 +1,75 @@
+name: "plan-code-review"
+
+# All models routed through OpenRouter for unified billing
+# Prices from https://openrouter.ai as of Feb 2026
+models:
+  opus:
+    provider: openrouter
+    model_id: anthropic/claude-opus-4.6
+    api_key_env: OPENROUTER_API_KEY
+    base_url: "https://openrouter.ai/api"
+    cost_per_mtok_input: 15.0
+    cost_per_mtok_output: 75.0
+
+  haiku:
+    provider: openrouter
+    model_id: anthropic/claude-haiku-4.5
+    api_key_env: OPENROUTER_API_KEY
+    base_url: "https://openrouter.ai/api"
+    cost_per_mtok_input: 0.80
+    cost_per_mtok_output: 4.0
+
+  qwen:
+    provider: openrouter
+    model_id: qwen/qwen3-coder-next
+    api_key_env: OPENROUTER_API_KEY
+    base_url: "https://openrouter.ai/api"
+    cost_per_mtok_input: 0.07
+    cost_per_mtok_output: 0.30
+
+stages:
+  - name: plan
+    model: opus
+    prompt_file: prompts/plan.txt
+    max_turns: 30
+    max_budget_usd: 3.00
+    timeout_seconds: 600
+    allowed_tools: [Read, Grep, Glob, Write]
+
+  - name: explore
+    model: haiku
+    prompt_file: prompts/explore.txt
+    max_turns: 80
+    max_budget_usd: 1.00
+    timeout_seconds: 300
+    allowed_tools: [Read, Grep, Glob, Bash, Write]
+
+  - name: code
+    model: qwen
+    prompt_file: prompts/code.txt
+    max_turns: 100
+    max_budget_usd: 2.00
+    timeout_seconds: 900
+
+  - name: review
+    model: opus
+    prompt_file: prompts/review.txt
+    max_turns: 20
+    max_budget_usd: 2.00
+    timeout_seconds: 300
+    allowed_tools: [Read, Grep, Glob, Bash]
+    disallowed_tools: [Edit, Write]
+
+fanout:
+  enabled: true
+  max_parallel: 4
+  memory_limit: "2g"
+  cpu_limit: 1.0
+
+review:
+  max_iterations: 3
+  pass_threshold: "PASS"
+
+docker:
+  image: cloding:latest
+  network: cloding-net

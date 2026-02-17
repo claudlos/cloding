@@ -1,0 +1,65 @@
+name: "test-cheap"
+
+# All-Haiku pipeline for testing when credits are low
+# Uses the cheapest model for all stages
+
+models:
+  haiku:
+    provider: openrouter
+    model_id: anthropic/claude-haiku-4.5
+    api_key_env: OPENROUTER_API_KEY
+    base_url: "https://openrouter.ai/api"
+    cost_per_mtok_input: 0.80
+    cost_per_mtok_output: 4.0
+
+  qwen:
+    provider: openrouter
+    model_id: qwen/qwen3-coder-next
+    api_key_env: OPENROUTER_API_KEY
+    base_url: "https://openrouter.ai/api"
+    cost_per_mtok_input: 0.07
+    cost_per_mtok_output: 0.30
+
+stages:
+  - name: plan
+    model: haiku
+    prompt_file: prompts/plan.txt
+    max_turns: 20
+    max_budget_usd: 1.00
+    timeout_seconds: 300
+    allowed_tools: [Read, Grep, Glob, Write]
+
+  - name: explore
+    model: haiku
+    prompt_file: prompts/explore.txt
+    max_turns: 20
+    max_budget_usd: 1.00
+    timeout_seconds: 300
+    allowed_tools: [Read, Grep, Glob, Bash, Write]
+
+  - name: code
+    model: qwen
+    prompt_file: prompts/code.txt
+    max_turns: 40
+    max_budget_usd: 1.00
+    timeout_seconds: 600
+
+  - name: review
+    model: haiku
+    prompt_file: prompts/review.txt
+    max_turns: 10
+    max_budget_usd: 1.00
+    timeout_seconds: 300
+    allowed_tools: [Read, Grep, Glob, Bash]
+    disallowed_tools: [Edit, Write]
+
+fanout:
+  enabled: false
+
+review:
+  max_iterations: 1
+  pass_threshold: "PASS"
+
+docker:
+  image: cloding:latest
+  network: cloding-net

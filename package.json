@@ -1,0 +1,38 @@
+{
+  "name": "cloding",
+  "version": "0.1.0",
+  "description": "Claude Code with any model via OpenRouter. Use Qwen, Haiku, Sonnet, or Opus at a fraction of the cost.",
+  "bin": {
+    "cloding": "./bin/cloding.js"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "openrouter",
+    "qwen",
+    "ai",
+    "coding",
+    "llm",
+    "cheap",
+    "cost-effective"
+  ],
+  "author": "Carlos",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/carloslfu/cloding"
+  },
+  "homepage": "https://github.com/carloslfu/cloding#readme",
+  "bugs": {
+    "url": "https://github.com/carloslfu/cloding/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "bin/",
+    "models.json",
+    "README.md",
+    "LICENSE"
+  ]
+}

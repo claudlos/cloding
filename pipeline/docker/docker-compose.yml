@@ -1,0 +1,53 @@
+version: "3.8"
+
+# Usage:
+#   docker compose build                        # Build the image
+#   docker compose run --rm claude -p "hello"    # Run a one-shot prompt
+#   docker compose up -d claude-1 claude-2       # Start parallel workers
+#
+# Set OPENROUTER_API_KEY in .env or environment before running.
+
+services:
+  claude:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cloding:latest
+    environment:
+      - ANTHROPIC_BASE_URL=https://openrouter.ai/api
+      - ANTHROPIC_AUTH_TOKEN=${OPENROUTER_API_KEY}
+      - ANTHROPIC_API_KEY=
+      - ANTHROPIC_MODEL=${CLODING_MODEL:-qwen/qwen3-coder-next}
+    volumes:
+      - ${WORKSPACE:-.}:/workspace
+    working_dir: /workspace
+    networks:
+      - cloding-net
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: "1.0"
+
+  # Parallel workers for fan-out tasks.
+  # Start with: docker compose up -d claude-1 claude-2 claude-3
+  claude-1:
+    extends: claude
+    container_name: cloding-worker-1
+
+  claude-2:
+    extends: claude
+    container_name: cloding-worker-2
+
+  claude-3:
+    extends: claude
+    container_name: cloding-worker-3
+
+  claude-4:
+    extends: claude
+    container_name: cloding-worker-4
+
+networks:
+  cloding-net:
+    name: cloding-net
+    driver: bridge

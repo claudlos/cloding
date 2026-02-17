@@ -1,0 +1,54 @@
+# Node
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+
+# Cloding data
+data/runs/
+data/costs/
+pipeline/data/
+
+# Claude Code
+.claude/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log
+
+# npm
+.npmrc
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Coverage
+htmlcov/
+.coverage
+coverage.xml
+
+# mypy
+.mypy_cache/

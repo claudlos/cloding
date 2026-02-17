@@ -1,0 +1,51 @@
+name: "human-loop"
+
+# Human writes PLAN.md, Haiku explores, Qwen codes.
+# No plan or review stages — you are the planner and reviewer.
+#
+# Workflow:
+#   1. Write PLAN.md in your workspace (use the format from prompts/plan.txt)
+#   2. Run: python -m osq "your request" -c configs/human-loop.yaml -w ./myapp --no-docker
+#   3. Haiku explores codebase and writes CONTEXT.md
+#   4. Qwen implements the code
+#   5. You review the output yourself
+
+models:
+  haiku:
+    provider: openrouter
+    model_id: anthropic/claude-haiku-4.5
+    api_key_env: OPENROUTER_API_KEY
+    base_url: "https://openrouter.ai/api"
+    cost_per_mtok_input: 0.80
+    cost_per_mtok_output: 4.0
+
+  qwen:
+    provider: openrouter
+    model_id: qwen/qwen3-coder-next
+    api_key_env: OPENROUTER_API_KEY
+    base_url: "https://openrouter.ai/api"
+    cost_per_mtok_input: 0.07
+    cost_per_mtok_output: 0.30
+
+stages:
+  - name: explore
+    model: haiku
+    prompt_file: prompts/explore.txt
+    max_turns: 20
+    max_budget_usd: 1.00
+    timeout_seconds: 300
+    allowed_tools: [Read, Grep, Glob, Bash, Write]
+
+  - name: code
+    model: qwen
+    prompt_file: prompts/code.txt
+    max_turns: 50
+    max_budget_usd: 1.00
+    timeout_seconds: 600
+
+fanout:
+  enabled: false
+
+review:
+  max_iterations: 0
+  pass_threshold: "PASS"

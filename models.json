@@ -1,0 +1,44 @@
+{
+  "qwen": {
+    "id": "qwen/qwen3-coder-next",
+    "name": "Qwen 3 Coder",
+    "in": 0.07,
+    "out": 0.30,
+    "description": "Best value. Handles all Claude Code tools perfectly."
+  },
+  "haiku": {
+    "id": "anthropic/claude-haiku-4.5",
+    "name": "Claude Haiku 4.5",
+    "in": 0.80,
+    "out": 4.00,
+    "description": "Fast and capable. Good for exploration tasks."
+  },
+  "sonnet": {
+    "id": "anthropic/claude-sonnet-4",
+    "name": "Claude Sonnet 4",
+    "in": 3.00,
+    "out": 15.00,
+    "description": "Strong all-rounder. Good for complex coding."
+  },
+  "opus": {
+    "id": "anthropic/claude-opus-4.6",
+    "name": "Claude Opus 4.6",
+    "in": 15.00,
+    "out": 75.00,
+    "description": "Most capable. Use for architecture and planning."
+  },
+  "deepseek": {
+    "id": "deepseek/deepseek-coder-v3",
+    "name": "DeepSeek Coder V3",
+    "in": 0.14,
+    "out": 0.28,
+    "description": "Ultra-cheap alternative. Good for simple tasks."
+  },
+  "gemini": {
+    "id": "google/gemini-2.5-pro",
+    "name": "Gemini 2.5 Pro",
+    "in": 1.25,
+    "out": 10.00,
+    "description": "Google's flagship. Large context window."
+  }
+}
