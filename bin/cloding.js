@@ -16,9 +16,36 @@
  *   cloding docker run "prompt"     # Run in a Docker container
  */
 
-const { spawn, execSync } = require("child_process");
+const { spawn, spawnSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
+
+// ──────────────────────────────────────────────
+// Constants
+// ──────────────────────────────────────────────
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const DEFAULT_MODEL = "qwen";
+const DOCKER_IMAGE = "cloding:latest";
+const DOCKER_NETWORK = "cloding-net";
+
+// ──────────────────────────────────────────────
+// Signal forwarding — relay SIGINT/SIGTERM to child processes
+// ──────────────────────────────────────────────
+function forwardSignals(child) {
+  const handler = (signal) => {
+    if (child && !child.killed) {
+      child.kill(signal);
+    }
+  };
+  process.on("SIGINT", handler);
+  process.on("SIGTERM", handler);
+  // Clean up listeners when child exits to avoid leaks
+  child.on("exit", () => {
+    process.removeListener("SIGINT", handler);
+    process.removeListener("SIGTERM", handler);
+  });
+}
 
 // ──────────────────────────────────────────────
 // .env loader (no dependencies)
@@ -47,8 +74,9 @@ function loadEnvFile() {
         ) {
           val = val.slice(1, -1);
         }
-        // Don't override existing env vars
-        if (!process.env[key]) {
+        // Don't override existing env vars (check existence, not truthiness —
+        // empty string values like ANTHROPIC_API_KEY="" must be preserved)
+        if (!(key in process.env)) {
           process.env[key] = val;
         }
       }
@@ -63,12 +91,35 @@ function loadEnvFile() {
 // ──────────────────────────────────────────────
 function loadModels() {
   const modelsPath = path.join(__dirname, "..", "models.json");
+  let models;
   try {
-    return JSON.parse(fs.readFileSync(modelsPath, "utf8"));
+    models = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
   } catch {
     console.error("Error: Could not load models.json");
     process.exit(1);
   }
+
+  // Validate structure
+  if (!models || typeof models !== "object" || Array.isArray(models)) {
+    console.error("Error: models.json must be a JSON object");
+    process.exit(1);
+  }
+  for (const [shortcut, m] of Object.entries(models)) {
+    if (!m.id || typeof m.id !== "string") {
+      console.error(`Error: models.json: "${shortcut}" missing required "id" (string)`);
+      process.exit(1);
+    }
+    if (!m.name || typeof m.name !== "string") {
+      console.error(`Error: models.json: "${shortcut}" missing required "name" (string)`);
+      process.exit(1);
+    }
+    if (typeof m.in !== "number" || typeof m.out !== "number") {
+      console.error(`Error: models.json: "${shortcut}" requires numeric "in" and "out" costs`);
+      process.exit(1);
+    }
+  }
+
+  return models;
 }
 
 // ──────────────────────────────────────────────
@@ -148,10 +199,14 @@ function parseArgs(argv) {
 // Display helpers
 // ──────────────────────────────────────────────
 function printVersion() {
-  const pkg = JSON.parse(
-    fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8")
-  );
-  console.log(`cloding v${pkg.version}`);
+  try {
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8")
+    );
+    console.log(`cloding v${pkg.version}`);
+  } catch {
+    console.log("cloding (unknown version)");
+  }
 }
 
 function printHelp() {
@@ -183,7 +238,7 @@ DOCKER COMMANDS:
   cloding docker help                 Show Docker help
 
 MODELS (shortcuts):
-  qwen       Qwen 3 Coder        $0.07/$0.30 per Mtok  (default, ~250x cheaper)
+  qwen       Qwen 3 Coder        $0.07/$0.30 per Mtok  (default, ~71x cheaper)
   haiku      Claude Haiku 4.5     $0.80/$4.00 per Mtok
   sonnet     Claude Sonnet 4      $3.00/$15.00 per Mtok
   opus       Claude Opus 4.6      $15.00/$75.00 per Mtok
@@ -223,9 +278,10 @@ function printModels(models) {
   const opusOut = models.opus ? models.opus.out : 75.0;
 
   for (const [shortcut, m] of Object.entries(models)) {
-    const savings = opusOut / m.out;
+    const savings = m.out > 0 ? Math.round(opusOut / m.out) : 0;
     const savingsStr =
-      shortcut === "opus" ? "    baseline" : `    ${savings.toFixed(0)}x cheaper`;
+      shortcut === "opus" ? "    baseline" :
+      savings > 0 ? `    ${savings}x cheaper` : "    n/a";
     console.log(
       `  ${shortcut.padEnd(11)} ${m.name.padEnd(24)} $${m.in.toFixed(2).padStart(6)}         $${m.out.toFixed(2).padStart(6)}${savingsStr}`
     );
@@ -242,7 +298,7 @@ function printModels(models) {
 function resolveModel(modelArg, models) {
   if (!modelArg) {
     // Use default from env, or fall back to qwen
-    const defaultModel = process.env.CLODING_DEFAULT_MODEL || "qwen";
+    const defaultModel = process.env.CLODING_DEFAULT_MODEL || DEFAULT_MODEL;
     return resolveModel(defaultModel, models);
   }
 
@@ -261,16 +317,10 @@ function resolveModel(modelArg, models) {
   };
 }
 
-// ──────────────────────────────────────────────
-// Docker helpers
-// ──────────────────────────────────────────────
-const DOCKER_IMAGE = "cloding:latest";
-const DOCKER_NETWORK = "cloding-net";
-
 function dockerAvailable() {
   try {
-    execSync("docker --version", { stdio: "ignore" });
-    return true;
+    const result = spawnSync("docker", ["--version"], { stdio: "ignore" });
+    return result.status === 0;
   } catch {
     return false;
   }
@@ -278,11 +328,10 @@ function dockerAvailable() {
 
 function dockerImageExists() {
   try {
-    // Safe: no user input in this command, just a constant image name
-    const result = execSync(`docker images -q ${DOCKER_IMAGE}`, {
+    const result = spawnSync("docker", ["images", "-q", DOCKER_IMAGE], {
       encoding: "utf8",
     });
-    return result.trim().length > 0;
+    return (result.stdout || "").trim().length > 0;
   } catch {
     return false;
   }
@@ -305,10 +354,7 @@ function getDockerfilePath() {
 function ensureNetwork() {
   try {
     // Safe: constant network name, no user input. Uses spawnSync for safety.
-    const result = require("child_process").spawnSync(
-      "docker", ["network", "create", DOCKER_NETWORK],
-      { stdio: "ignore" }
-    );
+    spawnSync("docker", ["network", "create", DOCKER_NETWORK], { stdio: "ignore" });
     // Ignore errors — network may already exist
   } catch {
     // Network already exists, that's fine
@@ -332,6 +378,7 @@ COMMANDS:
 
 OPTIONS (for run/shell):
   -m, --model <name>       Model shortcut or OpenRouter ID (default: qwen)
+  -p, --prompt <text>      Prompt text (alternative to positional argument)
   -w, --workspace <path>   Mount a local directory as /workspace (default: cwd)
   --memory <limit>         Container memory limit (default: 2g)
   --cpus <limit>           Container CPU limit (default: 1.0)
@@ -372,6 +419,7 @@ function dockerBuild() {
   const child = spawn("docker", ["build", "-t", DOCKER_IMAGE, dockerDir], {
     stdio: "inherit",
   });
+  forwardSignals(child);
 
   child.on("exit", (code) => {
     if (code === 0) {
@@ -411,6 +459,11 @@ function dockerRun(dockerArgs, models, interactive) {
       case "--model":
         if (i + 1 >= dockerArgs.length) { console.error("Error: --model requires a value."); process.exit(1); }
         modelArg = dockerArgs[++i];
+        break;
+      case "-p":
+      case "--prompt":
+        if (i + 1 >= dockerArgs.length) { console.error("Error: --prompt requires a value."); process.exit(1); }
+        prompt = dockerArgs[++i];
         break;
       case "-w":
       case "--workspace":
@@ -474,9 +527,13 @@ function dockerRun(dockerArgs, models, interactive) {
   // Resolve model
   const model = resolveModel(modelArg, models);
 
-  // Validate workspace exists
+  // Validate workspace exists and is a directory
   if (!fs.existsSync(workspace)) {
-    console.error(`Error: Workspace directory not found: ${workspace}`);
+    console.error(`Error: Workspace not found: ${workspace}`);
+    process.exit(1);
+  }
+  if (!fs.statSync(workspace).isDirectory()) {
+    console.error(`Error: Workspace path is not a directory: ${workspace}`);
     process.exit(1);
   }
 
@@ -488,6 +545,17 @@ function dockerRun(dockerArgs, models, interactive) {
     const suffix = Date.now().toString(36);
     containerName = `cloding-${interactive ? "shell" : "run"}-${suffix}`;
   }
+
+  // Write env vars to a temp file so the API key doesn't leak in `ps aux`
+  const envFileContent = [
+    `ANTHROPIC_BASE_URL=${OPENROUTER_BASE_URL}`,
+    `ANTHROPIC_AUTH_TOKEN=${apiKey}`,
+    `ANTHROPIC_API_KEY=`,
+    `ANTHROPIC_MODEL=${model.id}`,
+    `CLAUDECODE=`,
+  ].join("\n") + "\n";
+  const envFilePath = path.join(os.tmpdir(), `cloding-env-${Date.now()}.tmp`);
+  fs.writeFileSync(envFilePath, envFileContent, { mode: 0o600 });
 
   // Build docker command — uses spawn with argument array (safe, no shell injection)
   const cmd = ["docker", "run"];
@@ -506,11 +574,7 @@ function dockerRun(dockerArgs, models, interactive) {
     "--memory", memory,
     "--cpus", cpus,
     "-v", `${workspace}:/workspace`,
-    "-e", `ANTHROPIC_BASE_URL=https://openrouter.ai/api`,
-    "-e", `ANTHROPIC_AUTH_TOKEN=${apiKey}`,
-    "-e", `ANTHROPIC_API_KEY=`,
-    "-e", `ANTHROPIC_MODEL=${model.id}`,
-    "-e", `CLAUDECODE=`,
+    "--env-file", envFilePath,
     DOCKER_IMAGE
   );
 
@@ -530,21 +594,31 @@ function dockerRun(dockerArgs, models, interactive) {
   console.log(`  Workspace: ${workspace} → /workspace`);
   console.log(`  Resources: ${memory} RAM, ${cpus} CPUs`);
 
-  if (model.in > 0 && models.opus) {
-    const savings = (models.opus.out / model.out).toFixed(0);
+  if (model.in > 0 && model.out > 0 && models.opus) {
+    const savings = Math.round(models.opus.out / model.out);
     if (savings > 1) {
       console.log(`  \x1b[32m${savings}x cheaper than Opus\x1b[0m`);
     }
   }
   console.log("");
 
+  // Clean up env file on exit (contains API key)
+  function cleanupEnvFile() {
+    try { fs.unlinkSync(envFilePath); } catch {}
+  }
+
   // Spawn docker — uses argument array (no shell interpretation)
   const child = spawn(cmd[0], cmd.slice(1), {
     stdio: "inherit",
   });
+  forwardSignals(child);
 
-  child.on("exit", (code) => process.exit(code ?? 0));
+  child.on("exit", (code) => {
+    cleanupEnvFile();
+    process.exit(code ?? 0);
+  });
   child.on("error", (err) => {
+    cleanupEnvFile();
     console.error(`Error launching Docker: ${err.message}`);
     console.error("Make sure Docker is installed and running.");
     process.exit(1);
@@ -556,7 +630,7 @@ function dockerStatus() {
 
   try {
     // Safe: uses spawnSync with argument array, no shell injection possible
-    const result = require("child_process").spawnSync(
+    const result = spawnSync(
       "docker",
       ["ps", "--filter", "name=cloding", "--format", "table {{.Names}}\t{{.Status}}\t{{.Image}}\t{{.Ports}}"],
       { encoding: "utf8" }
@@ -583,7 +657,7 @@ function dockerStop() {
 
   try {
     // Safe: uses spawnSync with argument array
-    const result = require("child_process").spawnSync(
+    const result = spawnSync(
       "docker",
       ["ps", "-q", "--filter", "name=cloding"],
       { encoding: "utf8" }
@@ -601,13 +675,13 @@ function dockerStop() {
 
     for (const id of ids) {
       try {
-        const inspect = require("child_process").spawnSync(
+        const inspect = spawnSync(
           "docker", ["inspect", "--format", "{{.Name}}", id],
           { encoding: "utf8" }
         );
         const name = (inspect.stdout || id).trim().replace(/^\//, "");
 
-        require("child_process").spawnSync(
+        spawnSync(
           "docker", ["stop", "-t", "5", id],
           { stdio: "ignore" }
         );
@@ -630,7 +704,7 @@ function dockerClean() {
 
   try {
     // Safe: uses spawnSync with argument array
-    const result = require("child_process").spawnSync(
+    const result = spawnSync(
       "docker",
       ["ps", "-aq", "--filter", "name=cloding", "--filter", "status=exited"],
       { encoding: "utf8" }
@@ -648,13 +722,13 @@ function dockerClean() {
 
     for (const id of ids) {
       try {
-        const inspect = require("child_process").spawnSync(
+        const inspect = spawnSync(
           "docker", ["inspect", "--format", "{{.Name}}", id],
           { encoding: "utf8" }
         );
         const name = (inspect.stdout || id).trim().replace(/^\//, "");
 
-        require("child_process").spawnSync(
+        spawnSync(
           "docker", ["rm", id],
           { stdio: "ignore" }
         );
@@ -782,11 +856,17 @@ function main() {
     const pythonArgs = ["-m", "osq", ...args.pipelineArgs];
     console.log(`Running pipeline: python ${pythonArgs.join(" ")}`);
 
+    // Pipeline inherits env but needs OpenRouter vars and CLAUDECODE stripped
+    const pipelineEnv = { ...process.env };
+    pipelineEnv.OPENROUTER_API_KEY = apiKey;
+    delete pipelineEnv.CLAUDECODE;
+
     const child = spawn("python", pythonArgs, {
       cwd: pipelineDir,
       stdio: "inherit",
-      env: { ...process.env },
+      env: pipelineEnv,
     });
+    forwardSignals(child);
 
     child.on("exit", (code) => process.exit(code ?? 0));
     child.on("error", (err) => {
@@ -802,7 +882,7 @@ function main() {
 
   // Build env for claude
   const claudeEnv = { ...process.env };
-  claudeEnv.ANTHROPIC_BASE_URL = "https://openrouter.ai/api";
+  claudeEnv.ANTHROPIC_BASE_URL = OPENROUTER_BASE_URL;
   claudeEnv.ANTHROPIC_AUTH_TOKEN = apiKey;
   claudeEnv.ANTHROPIC_API_KEY = "";
   claudeEnv.ANTHROPIC_MODEL = model.id;
@@ -817,15 +897,15 @@ function main() {
   }
 
   // Print banner
-  const shortcut = args.model || process.env.CLODING_DEFAULT_MODEL || "qwen";
+  const shortcut = args.model || process.env.CLODING_DEFAULT_MODEL || DEFAULT_MODEL;
   const costInfo =
     model.in > 0
       ? ` ($${model.in}/$${model.out} per Mtok)`
       : "";
   console.log(`\x1b[36m⚡ cloding\x1b[0m → ${model.name}${costInfo}`);
 
-  if (model.in > 0 && models.opus) {
-    const savings = (models.opus.out / model.out).toFixed(0);
+  if (model.in > 0 && model.out > 0 && models.opus) {
+    const savings = Math.round(models.opus.out / model.out);
     if (savings > 1) {
       console.log(`\x1b[32m   ${savings}x cheaper than Opus\x1b[0m`);
     }
@@ -833,25 +913,15 @@ function main() {
   console.log("");
 
   // Launch claude
-  // On Windows, npm globals are .cmd shims that need shell resolution.
-  // We use spawn with shell:true but pass empty args array to avoid the
-  // DEP0190 deprecation — instead the args are baked into the command string.
+  // On Windows, npm globals are .cmd shims that need shell:true for resolution.
+  // We pass args as an array and let Node handle escaping — never build a command string.
   const isWin = process.platform === "win32";
-  let child;
-  if (isWin) {
-    // Build full command string for shell execution
-    const parts = ["claude", ...claudeArgs.map((a) => `"${a}"`)];
-    child = spawn(parts.join(" "), {
-      stdio: "inherit",
-      env: claudeEnv,
-      shell: true,
-    });
-  } else {
-    child = spawn("claude", claudeArgs, {
-      stdio: "inherit",
-      env: claudeEnv,
-    });
-  }
+  const child = spawn("claude", claudeArgs, {
+    stdio: "inherit",
+    env: claudeEnv,
+    shell: isWin,
+  });
+  forwardSignals(child);
 
   child.on("exit", (code) => process.exit(code ?? 0));
   child.on("error", (err) => {
