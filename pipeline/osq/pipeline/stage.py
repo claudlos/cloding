@@ -38,7 +38,7 @@ class Stage(ABC):
 
         if self.model_config.provider == "openrouter":
             env["ANTHROPIC_BASE_URL"] = (
-                self.model_config.base_url or "https://openrouter.ai/api/v1"
+                self.model_config.base_url or "https://openrouter.ai/api"
             )
             env["ANTHROPIC_AUTH_TOKEN"] = api_key
             env["ANTHROPIC_API_KEY"] = ""

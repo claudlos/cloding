@@ -144,6 +144,54 @@ class TestTaskSplitter:
         assert "complex task" in tasks[0].description
         assert tasks[0].files_to_modify == ["complex.py"]
 
+    def test_split_invalid_priority_falls_back_to_task_number(self):
+        """When priority can't be parsed, should fall back to task number."""
+        plan = """\
+### Task 3: Some task
+
+- **Priority**: not-a-number
+- **Description**: Do something.
+"""
+        tasks = split_tasks(plan)
+        assert tasks[0].priority == 3
+
+    def test_split_skips_task_with_no_description_and_no_title(self):
+        """A task header like '### Task 1: ' with empty title and no description."""
+        plan = """\
+### Task 1: Good task
+
+- **Description**: Real work.
+
+### Task 2: \t
+
+"""
+        tasks = split_tasks(plan)
+        assert len(tasks) == 1
+        assert tasks[0].task_id == "task-1"
+
+    def test_file_overlap_warning(self, caplog):
+        """Multiple tasks modifying the same file should log a warning."""
+        import logging
+
+        plan = """\
+### Task 1: First task
+
+- **Files**: `shared.py`, `other.py`
+- **Priority**: 1
+- **Description**: Task one.
+
+### Task 2: Second task
+
+- **Files**: `shared.py`
+- **Priority**: 2
+- **Description**: Task two.
+"""
+        with caplog.at_level(logging.WARNING, logger="osq.task_splitter"):
+            tasks = split_tasks(plan)
+
+        assert len(tasks) == 2
+        assert any("shared.py" in msg for msg in caplog.messages)
+
 
 class TestMergeResults:
     def test_merge_all_success(self):

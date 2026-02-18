@@ -126,3 +126,91 @@ def test_config_bad_model_ref(tmp_path: Path, monkeypatch):
     )
     with pytest.raises(ConfigError, match="not defined"):
         load_config(str(p))
+
+
+def test_config_not_a_mapping(tmp_path: Path):
+    """YAML that parses to a non-dict (e.g., a string or list) should raise."""
+    p = tmp_path / "bad.yaml"
+    p.write_text("just a string, not a mapping\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="must be a YAML mapping"):
+        load_config(str(p))
+
+
+def test_config_model_not_a_mapping(tmp_path: Path):
+    """A model entry that's not a dict should raise."""
+    p = tmp_path / "bad.yaml"
+    p.write_text(
+        "models:\n  qwen: not-a-dict\n"
+        "stages:\n  - name: code\n    model: qwen\n    prompt_file: p.txt\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError, match="Model 'qwen' must be a mapping"):
+        load_config(str(p))
+
+
+def test_config_stage_not_a_mapping(tmp_path: Path):
+    """A stage entry that's not a dict should raise."""
+    p = tmp_path / "bad.yaml"
+    p.write_text(
+        "models:\n  x:\n    model_id: foo\n    api_key_env: X\n"
+        "stages:\n  - just-a-string\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError, match="Each stage must be a mapping"):
+        load_config(str(p))
+
+
+def test_config_missing_prompt_file(tmp_path: Path, monkeypatch):
+    """Stage with empty prompt_file should fail validation."""
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    p = tmp_path / "bad.yaml"
+    p.write_text(
+        "models:\n  x:\n    model_id: foo\n    api_key_env: OPENROUTER_API_KEY\n"
+        "stages:\n  - name: code\n    model: x\n    prompt_file: \"\"\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError, match="missing prompt_file"):
+        load_config(str(p))
+
+
+def test_config_missing_model_id(tmp_path: Path, monkeypatch):
+    """Model with empty model_id should fail validation."""
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    p = tmp_path / "bad.yaml"
+    p.write_text(
+        "models:\n  x:\n    model_id: \"\"\n    api_key_env: OPENROUTER_API_KEY\n"
+        "stages:\n  - name: code\n    model: x\n    prompt_file: p.txt\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError, match="missing model_id"):
+        load_config(str(p))
+
+
+def test_config_missing_api_key_env(tmp_path: Path):
+    """Model with empty api_key_env should fail validation."""
+    p = tmp_path / "bad.yaml"
+    p.write_text(
+        "models:\n  x:\n    model_id: foo\n    api_key_env: \"\"\n"
+        "stages:\n  - name: code\n    model: x\n    prompt_file: p.txt\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError, match="missing api_key_env"):
+        load_config(str(p))
+
+
+def test_config_warns_on_missing_api_key(tmp_path: Path, monkeypatch):
+    """When the API key env var is not set, should emit a warning."""
+    import warnings
+
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("MY_FAKE_KEY", raising=False)
+    p = tmp_path / "config.yaml"
+    p.write_text(
+        "models:\n  x:\n    model_id: foo\n    api_key_env: MY_FAKE_KEY\n"
+        "stages:\n  - name: code\n    model: x\n    prompt_file: p.txt\n",
+        encoding="utf-8",
+    )
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        load_config(str(p))
+    assert any("MY_FAKE_KEY" in str(warning.message) for warning in w)

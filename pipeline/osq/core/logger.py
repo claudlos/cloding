@@ -78,16 +78,8 @@ def get_logger(name: str, category: Optional[str] = None) -> logging.Logger:
     logger = logging.getLogger(f"osq.{name}")
 
     if category:
-        old_factory = logging.getLogRecordFactory()
-
-        def record_factory(*args, **kwargs):
-            record = old_factory(*args, **kwargs)
-            if record.name.startswith(f"osq.{name}"):
-                record.category = category  # type: ignore[attr-defined]
-            return record
-
-        # Instead of overriding the global factory (which would affect all loggers),
-        # use a filter to inject the category
+        # Use a filter to inject the category (not a global record factory,
+        # which would affect all loggers)
         class CategoryFilter(logging.Filter):
             def filter(self, record: logging.LogRecord) -> bool:
                 if not hasattr(record, "category"):

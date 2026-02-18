@@ -24,7 +24,7 @@ const os = require("os");
 // ──────────────────────────────────────────────
 // Constants
 // ──────────────────────────────────────────────
-const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api";
 const DEFAULT_MODEL = "qwen";
 const DOCKER_IMAGE = "cloding:latest";
 const DOCKER_NETWORK = "cloding-net";

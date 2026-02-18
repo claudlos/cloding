@@ -33,8 +33,9 @@ cloding pipeline --resume code --run-id <id> "original request"
 
 # Tests (pipeline)
 cd pipeline && pip install -r requirements-dev.txt
-cd pipeline && pytest tests/ -v -p no:anchorpy    # 39 tests, all async
+cd pipeline && pytest tests/ -v -p no:anchorpy    # 174 tests, all async
 cd pipeline && pytest tests/ -v --tb=short         # Shorter output
+cd pipeline && pytest tests/ --cov=osq --cov-report=term-missing  # Coverage (80%+ required)
 ```
 
 ## Architecture
@@ -141,11 +142,12 @@ Any OpenRouter model ID also works: `cloding -m meta-llama/llama-4-scout`
 
 ## Testing
 
-- **39 tests**, all async (pytest-asyncio)
-- Test files in `pipeline/tests/`: config, cost_tracker, docker_runner, fanout, local_runner, pipeline
+- **174 tests** across 14 test files, all async (pytest-asyncio)
+- Test files in `pipeline/tests/`: cli, config, cost_tracker, docker_runner, fanout, local_runner, logger, orchestrator, parallel_runner, pipeline, pipeline_sequencer, registry, stage, workspace
 - Dev dependencies: `pytest>=8.0`, `pytest-asyncio>=0.23`, `black`, `isort`, `ruff`, `mypy`, `coverage`
-- Coverage target: 80% (`pyproject.toml [tool.coverage.report] fail_under = 80`)
+- Coverage: **80.6%** (target: 80%, configured in `pyproject.toml [tool.coverage.report] fail_under = 80`)
 - Run: `cd pipeline && pytest tests/ -v -p no:anchorpy`
+- Run with coverage: `cd pipeline && pytest tests/ --cov=osq --cov-report=term-missing`
 - Note: `-p no:anchorpy` disables anchorpy plugin if installed (conflicts with pytest-asyncio)
 
 ## Code Style
