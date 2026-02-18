@@ -1,10 +1,10 @@
 # ⚡ cloding
 
-**Claude Code with any model via OpenRouter.**
+**Code with any model via OpenRouter.**
 
-Claude Code costs $5/$25 per Mtok. Qwen 3 Coder costs $0.07/$0.30. That's 71x cheaper on input, 83x cheaper on output. You'd be an idiot not to use it at scale.
+Claude Code costs $5/$25 per Mtok. Qwen 3 Coder costs $0.07/$0.30. That's 71x cheaper on input, 83x cheaper on output.
 
-Cloding lets you run Claude Code — tools, file editing, terminal access, the whole thing — with any OpenRouter model. Same experience, fraction of the cost. Zero dependencies, zero overhead. It sets 4 env vars and spawns `claude`. That's it.
+Cloding lets you run Claude Code — tools, file editing, terminal access, the whole thing — with any OpenRouter model. Same experience, fraction of the cost.
 
 ```
 npm install -g cloding
@@ -96,6 +96,7 @@ Add custom model shortcuts by editing `models.json`.
 - **Node.js 18+**
 - **Claude Code**: `npm install -g @anthropic-ai/claude-code`
 - **OpenRouter API key**: [openrouter.ai/keys](https://openrouter.ai/keys)
+- **Docker** *(for Docker mode)*: [Docker Desktop](https://docs.docker.com/get-started/get-docker/) · [Windows](https://docs.docker.com/desktop/setup/install/windows-install/) · [Mac](https://docs.docker.com/desktop/setup/install/mac-install/) · [Linux](https://docs.docker.com/desktop/setup/install/linux/) · [Engine only](https://docs.docker.com/engine/install)
 
 ## License
 
