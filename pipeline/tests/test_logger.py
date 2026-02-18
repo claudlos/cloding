@@ -3,14 +3,14 @@
 import logging
 from unittest.mock import MagicMock, patch
 
-from osq.core.logger import CategoryFormatter, get_logger, init_logging, _initialized
+from cloding.core.logger import CategoryFormatter, get_logger, init_logging, _initialized
 
 
 class TestCategoryFormatter:
     def test_format_with_color(self):
         formatter = CategoryFormatter(use_color=True)
         record = logging.LogRecord(
-            name="osq.test", level=logging.INFO,
+            name="cloding.test", level=logging.INFO,
             pathname="", lineno=0, msg="hello", args=(), exc_info=None,
         )
         output = formatter.format(record)
@@ -20,7 +20,7 @@ class TestCategoryFormatter:
     def test_format_without_color(self):
         formatter = CategoryFormatter(use_color=False)
         record = logging.LogRecord(
-            name="osq.test", level=logging.WARNING,
+            name="cloding.test", level=logging.WARNING,
             pathname="", lineno=0, msg="warn msg", args=(), exc_info=None,
         )
         output = formatter.format(record)
@@ -30,7 +30,7 @@ class TestCategoryFormatter:
     def test_format_with_category(self):
         formatter = CategoryFormatter(use_color=False)
         record = logging.LogRecord(
-            name="osq.test", level=logging.INFO,
+            name="cloding.test", level=logging.INFO,
             pathname="", lineno=0, msg="test", args=(), exc_info=None,
         )
         record.category = "STAGE"  # type: ignore[attr-defined]
@@ -41,7 +41,7 @@ class TestCategoryFormatter:
         formatter = CategoryFormatter(use_color=True)
         for level in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]:
             record = logging.LogRecord(
-                name="osq.test", level=level,
+                name="cloding.test", level=level,
                 pathname="", lineno=0, msg="msg", args=(), exc_info=None,
             )
             output = formatter.format(record)
@@ -51,16 +51,16 @@ class TestCategoryFormatter:
         """Records without a category attribute should not have a tag."""
         formatter = CategoryFormatter(use_color=False)
         record = logging.LogRecord(
-            name="osq.test", level=logging.INFO,
+            name="cloding.test", level=logging.INFO,
             pathname="", lineno=0, msg="plain", args=(), exc_info=None,
         )
         output = formatter.format(record)
-        assert "[" not in output.split("osq.test")[0].split("INFO")[1]
+        assert "[" not in output.split("cloding.test")[0].split("INFO")[1]
 
     def test_format_includes_timestamp(self):
         formatter = CategoryFormatter(use_color=False)
         record = logging.LogRecord(
-            name="osq.test", level=logging.INFO,
+            name="cloding.test", level=logging.INFO,
             pathname="", lineno=0, msg="test", args=(), exc_info=None,
         )
         output = formatter.format(record)
@@ -72,7 +72,7 @@ class TestGetLogger:
     def test_returns_logger(self):
         log = get_logger("testmod")
         assert isinstance(log, logging.Logger)
-        assert "osq.testmod" in log.name
+        assert "cloding.testmod" in log.name
 
     def test_with_category(self):
         log = get_logger("testmod2", category="DOCKER")
@@ -83,7 +83,7 @@ class TestGetLogger:
     def test_category_filter_injects_attribute(self):
         log = get_logger("cattest", category="COST")
         record = logging.LogRecord(
-            name="osq.cattest", level=logging.INFO,
+            name="cloding.cattest", level=logging.INFO,
             pathname="", lineno=0, msg="test", args=(), exc_info=None,
         )
         # Run the filter
@@ -102,7 +102,7 @@ class TestGetLogger:
         """If record already has category, filter should not overwrite it."""
         log = get_logger("existing_cat", category="NEW")
         record = logging.LogRecord(
-            name="osq.existing_cat", level=logging.INFO,
+            name="cloding.existing_cat", level=logging.INFO,
             pathname="", lineno=0, msg="test", args=(), exc_info=None,
         )
         record.category = "ORIGINAL"  # type: ignore[attr-defined]
@@ -113,15 +113,15 @@ class TestGetLogger:
 
 class TestInitLogging:
     def test_init_logging_sets_up_handler(self):
-        """init_logging should add a handler to the osq logger."""
-        import osq.core.logger as logger_module
+        """init_logging should add a handler to the cloding logger."""
+        import cloding.core.logger as logger_module
 
         # Reset the _initialized flag to test init
         original = logger_module._initialized
         logger_module._initialized = False
 
         try:
-            root = logging.getLogger("osq")
+            root = logging.getLogger("cloding")
             original_handlers = root.handlers.copy()
 
             init_logging("INFO")
@@ -134,13 +134,13 @@ class TestInitLogging:
 
     def test_init_logging_idempotent(self):
         """Calling init_logging twice should not add duplicate handlers."""
-        import osq.core.logger as logger_module
+        import cloding.core.logger as logger_module
 
         original = logger_module._initialized
         logger_module._initialized = False
 
         try:
-            root = logging.getLogger("osq")
+            root = logging.getLogger("cloding")
 
             init_logging("INFO")
             count_after_first = len(root.handlers)
@@ -155,14 +155,14 @@ class TestInitLogging:
 
     def test_init_logging_debug_level(self):
         """DEBUG level should be settable."""
-        import osq.core.logger as logger_module
+        import cloding.core.logger as logger_module
 
         original = logger_module._initialized
         logger_module._initialized = False
 
         try:
             init_logging("DEBUG")
-            root = logging.getLogger("osq")
+            root = logging.getLogger("cloding")
             assert root.level == logging.DEBUG
         finally:
             logger_module._initialized = original
@@ -170,13 +170,13 @@ class TestInitLogging:
     def test_init_logging_tty_detection(self):
         """When stdout is a TTY, should use color formatter."""
         import io
-        import osq.core.logger as logger_module
+        import cloding.core.logger as logger_module
 
         original = logger_module._initialized
         logger_module._initialized = False
 
         try:
-            root = logging.getLogger("osq")
+            root = logging.getLogger("cloding")
             handler_count_before = len(root.handlers)
 
             # Create a mock stdout that claims to be a TTY
@@ -200,13 +200,13 @@ class TestInitLogging:
     def test_init_logging_non_tty_detection(self):
         """When stdout is not a TTY, should not use color."""
         import io
-        import osq.core.logger as logger_module
+        import cloding.core.logger as logger_module
 
         original = logger_module._initialized
         logger_module._initialized = False
 
         try:
-            root = logging.getLogger("osq")
+            root = logging.getLogger("cloding")
             handler_count_before = len(root.handlers)
 
             mock_stdout = MagicMock()
@@ -227,13 +227,13 @@ class TestInitLogging:
     def test_init_logging_windows_utf8_wrapper(self):
         """On Windows, stdout should be wrapped with UTF-8 TextIOWrapper."""
         import io
-        import osq.core.logger as logger_module
+        import cloding.core.logger as logger_module
 
         original = logger_module._initialized
         logger_module._initialized = False
 
         try:
-            root = logging.getLogger("osq")
+            root = logging.getLogger("cloding")
 
             mock_stdout = MagicMock()
             mock_stdout.isatty = MagicMock(return_value=False)

@@ -5,7 +5,7 @@ name: "human-loop"
 #
 # Workflow:
 #   1. Write PLAN.md in your workspace (use the format from prompts/plan.txt)
-#   2. Run: python -m osq "your request" -c configs/human-loop.yaml -w ./myapp --no-docker
+#   2. Run: python -m cloding "your request" -c configs/human-loop.yaml -w ./myapp --no-docker
 #   3. Haiku explores codebase and writes CONTEXT.md
 #   4. Qwen implements the code
 #   5. You review the output yourself

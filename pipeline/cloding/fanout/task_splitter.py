@@ -2,9 +2,9 @@
 
 import re
 
-from osq.core.errors import StageError
-from osq.core.logger import get_logger
-from osq.pipeline.state import CodingTask
+from cloding.core.errors import StageError
+from cloding.core.logger import get_logger
+from cloding.pipeline.state import CodingTask
 
 logger = get_logger("task_splitter", category="SYSTEM")
 

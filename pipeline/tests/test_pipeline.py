@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from osq.pipeline.result import PipelineResult, RunResult, StageResult
-from osq.pipeline.state import CodingTask, PipelineState
+from cloding.pipeline.result import PipelineResult, RunResult, StageResult
+from cloding.pipeline.state import CodingTask, PipelineState
 
 
 class TestRunResult:

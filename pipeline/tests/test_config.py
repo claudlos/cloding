@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from osq.core.config import (
+from cloding.core.config import (
     DockerConfig,
     FanoutConfig,
     ModelConfig,
@@ -14,7 +14,7 @@ from osq.core.config import (
     StageConfig,
     load_config,
 )
-from osq.core.errors import ConfigError
+from cloding.core.errors import ConfigError
 
 
 VALID_YAML = """\

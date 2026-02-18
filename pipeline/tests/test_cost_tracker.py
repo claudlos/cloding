@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from osq.models.cost_tracker import CostRecord, CostTracker
-from osq.pipeline.result import StageResult
+from cloding.models.cost_tracker import CostRecord, CostTracker
+from cloding.pipeline.result import StageResult
 
 
 @pytest.fixture

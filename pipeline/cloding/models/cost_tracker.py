@@ -5,8 +5,8 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from osq.core.logger import get_logger
-from osq.pipeline.result import StageResult
+from cloding.core.logger import get_logger
+from cloding.pipeline.result import StageResult
 
 
 @dataclass

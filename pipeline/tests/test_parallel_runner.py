@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from osq.core.config import ModelConfig, StageConfig
-from osq.fanout.parallel_runner import _build_task_state, _write_task_file
-from osq.pipeline.state import CodingTask, PipelineState
+from cloding.core.config import ModelConfig, StageConfig
+from cloding.fanout.parallel_runner import _build_task_state, _write_task_file
+from cloding.pipeline.state import CodingTask, PipelineState
 
 
 class TestWriteTaskFile:
@@ -101,9 +101,9 @@ class TestBuildTaskState:
 
 # --- Tests for run_tasks_parallel ---
 
-from osq.fanout.parallel_runner import run_tasks_parallel
-from osq.pipeline.result import RunResult, StageResult
-from osq.runners.base import BaseRunner
+from cloding.fanout.parallel_runner import run_tasks_parallel
+from cloding.pipeline.result import RunResult, StageResult
+from cloding.runners.base import BaseRunner
 
 
 class FakeParallelRunner(BaseRunner):

@@ -9,8 +9,8 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-from osq.core.errors import WorkspaceError
-from osq.core.logger import get_logger
+from cloding.core.errors import WorkspaceError
+from cloding.core.logger import get_logger
 
 logger = get_logger("workspace", category="SYSTEM")
 

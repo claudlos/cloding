@@ -2,8 +2,8 @@
 
 import pytest
 
-from osq.core.config import ModelConfig
-from osq.models.registry import ModelRegistry
+from cloding.core.config import ModelConfig
+from cloding.models.registry import ModelRegistry
 
 
 def _make_model(name="qwen", model_id="qwen/qwen3-coder-next", **kwargs):

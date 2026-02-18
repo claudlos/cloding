@@ -12,10 +12,10 @@ dependencies = [
 ]
 
 [project.scripts]
-cloding-pipeline = "osq.cli.main:main"
+cloding-pipeline = "cloding.cli.main:main"
 
 [tool.setuptools.packages.find]
-include = ["osq*"]
+include = ["cloding*"]
 
 [tool.black]
 line-length = 100
@@ -35,7 +35,7 @@ addopts = "-p no:anchorpy"
 mode = "auto"
 
 [tool.coverage.run]
-source = ["osq"]
+source = ["cloding"]
 branch = true
 
 [tool.coverage.report]

@@ -10,13 +10,13 @@ Safety: Uses asyncio subprocess with argument list (no shell interpretation).
 import asyncio
 from pathlib import Path
 
-from osq.core.config import ModelConfig, StageConfig
-from osq.core.logger import get_logger
-from osq.models.registry import ModelRegistry
-from osq.pipeline.result import StageResult
-from osq.pipeline.stage import create_stage
-from osq.pipeline.state import CodingTask, PipelineState
-from osq.runners.base import BaseRunner
+from cloding.core.config import ModelConfig, StageConfig
+from cloding.core.logger import get_logger
+from cloding.models.registry import ModelRegistry
+from cloding.pipeline.result import StageResult
+from cloding.pipeline.stage import create_stage
+from cloding.pipeline.state import CodingTask, PipelineState
+from cloding.runners.base import BaseRunner
 
 logger = get_logger("parallel_runner", category="FANOUT")
 

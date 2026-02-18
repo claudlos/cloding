@@ -6,10 +6,10 @@ import platform
 import shutil
 from pathlib import Path
 
-from osq.core.errors import StageError
-from osq.core.logger import get_logger
-from osq.pipeline.result import RunResult
-from osq.runners.base import BaseRunner
+from cloding.core.errors import StageError
+from cloding.core.logger import get_logger
+from cloding.pipeline.result import RunResult
+from cloding.runners.base import BaseRunner
 
 # Safe alias for subprocess creation
 _launch = asyncio.create_subprocess_exec

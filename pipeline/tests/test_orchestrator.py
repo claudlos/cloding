@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from osq.core.config import (
+from cloding.core.config import (
     DockerConfig,
     FanoutConfig,
     ModelConfig,
@@ -14,9 +14,9 @@ from osq.core.config import (
     ReviewConfig,
     StageConfig,
 )
-from osq.orchestrator import _print_dry_run, _print_summary
-from osq.pipeline.result import PipelineResult
-from osq.pipeline.state import PipelineState
+from cloding.orchestrator import _print_dry_run, _print_summary
+from cloding.pipeline.result import PipelineResult
+from cloding.pipeline.state import PipelineState
 
 
 class TestRunIdValidation:
@@ -161,7 +161,7 @@ stages:
     prompt_file: prompts/code.txt
 """, encoding="utf-8")
 
-        from osq.orchestrator import run_pipeline
+        from cloding.orchestrator import run_pipeline
         result = await run_pipeline(
             request="test request",
             config_path=str(config_file),
@@ -189,7 +189,7 @@ stages:
     prompt_file: prompts/code.txt
 """, encoding="utf-8")
 
-        from osq.orchestrator import run_pipeline
+        from cloding.orchestrator import run_pipeline
         result = await run_pipeline(
             request="test request",
             config_path=str(config_file),
@@ -216,9 +216,9 @@ stages:
     prompt_file: prompts/code.txt
 """, encoding="utf-8")
 
-        from osq.orchestrator import run_pipeline
-        with patch("osq.orchestrator.prepare_workspace", new_callable=AsyncMock, return_value=""):
-            with patch("osq.orchestrator.LocalRunner") as MockRunner:
+        from cloding.orchestrator import run_pipeline
+        with patch("cloding.orchestrator.prepare_workspace", new_callable=AsyncMock, return_value=""):
+            with patch("cloding.orchestrator.LocalRunner") as MockRunner:
                 MockRunner.return_value = MagicMock()
                 with pytest.raises(ValueError, match="Invalid run_id"):
                     await run_pipeline(
@@ -259,8 +259,8 @@ stages:
 
     async def test_local_runner_full_run(self, tmp_path):
         """Full pipeline run with local runner (no Docker)."""
-        from osq.orchestrator import run_pipeline
-        from osq.pipeline.result import PipelineResult, StageResult
+        from cloding.orchestrator import run_pipeline
+        from cloding.pipeline.result import PipelineResult, StageResult
 
         config_path = self._write_config(tmp_path)
 
@@ -275,8 +275,8 @@ stages:
             ],
         )
 
-        with patch("osq.orchestrator.prepare_workspace", new_callable=AsyncMock, return_value="cloding/test-branch"):
-            with patch("osq.orchestrator.Pipeline") as MockPipeline:
+        with patch("cloding.orchestrator.prepare_workspace", new_callable=AsyncMock, return_value="cloding/test-branch"):
+            with patch("cloding.orchestrator.Pipeline") as MockPipeline:
                 mock_pipe = MagicMock()
                 mock_pipe.run = AsyncMock(return_value=mock_pipeline_result)
                 MockPipeline.return_value = mock_pipe
@@ -295,21 +295,21 @@ stages:
 
     async def test_docker_runner_path(self, tmp_path):
         """Full pipeline run with Docker runner."""
-        from osq.orchestrator import run_pipeline
-        from osq.pipeline.result import PipelineResult
+        from cloding.orchestrator import run_pipeline
+        from cloding.pipeline.result import PipelineResult
 
         config_path = self._write_config(tmp_path)
 
         mock_result = PipelineResult(success=True, run_id="docker-run")
 
-        with patch("osq.orchestrator.prepare_workspace", new_callable=AsyncMock, return_value=""):
-            with patch("osq.orchestrator.DockerRunner") as MockDocker:
+        with patch("cloding.orchestrator.prepare_workspace", new_callable=AsyncMock, return_value=""):
+            with patch("cloding.orchestrator.DockerRunner") as MockDocker:
                 mock_docker_inst = MagicMock()
                 MockDocker.return_value = mock_docker_inst
                 MockDocker.ensure_image = AsyncMock()
                 MockDocker.ensure_network = AsyncMock()
 
-                with patch("osq.orchestrator.Pipeline") as MockPipeline:
+                with patch("cloding.orchestrator.Pipeline") as MockPipeline:
                     mock_pipe = MagicMock()
                     mock_pipe.run = AsyncMock(return_value=mock_result)
                     MockPipeline.return_value = mock_pipe
@@ -328,14 +328,14 @@ stages:
 
     async def test_resume_checkpoint_not_found(self, tmp_path):
         """Resume with missing checkpoint should log warning and start fresh."""
-        from osq.orchestrator import run_pipeline
-        from osq.pipeline.result import PipelineResult
+        from cloding.orchestrator import run_pipeline
+        from cloding.pipeline.result import PipelineResult
 
         config_path = self._write_config(tmp_path)
         mock_result = PipelineResult(success=True, run_id="fresh")
 
-        with patch("osq.orchestrator.prepare_workspace", new_callable=AsyncMock, return_value=""):
-            with patch("osq.orchestrator.Pipeline") as MockPipeline:
+        with patch("cloding.orchestrator.prepare_workspace", new_callable=AsyncMock, return_value=""):
+            with patch("cloding.orchestrator.Pipeline") as MockPipeline:
                 mock_pipe = MagicMock()
                 mock_pipe.run = AsyncMock(return_value=mock_result)
                 MockPipeline.return_value = mock_pipe
@@ -355,9 +355,9 @@ stages:
 
     async def test_resume_with_existing_checkpoint(self, tmp_path):
         """Resume with an existing checkpoint file should load state."""
-        from osq.orchestrator import run_pipeline
-        from osq.pipeline.result import PipelineResult
-        from osq.pipeline.state import PipelineState
+        from cloding.orchestrator import run_pipeline
+        from cloding.pipeline.result import PipelineResult
+        from cloding.pipeline.state import PipelineState
 
         config_path = self._write_config(tmp_path)
 
@@ -371,8 +371,8 @@ stages:
         mock_result = PipelineResult(success=True, run_id="existing-run")
 
         try:
-            with patch("osq.orchestrator.prepare_workspace", new_callable=AsyncMock, return_value=""):
-                with patch("osq.orchestrator.Pipeline") as MockPipeline:
+            with patch("cloding.orchestrator.prepare_workspace", new_callable=AsyncMock, return_value=""):
+                with patch("cloding.orchestrator.Pipeline") as MockPipeline:
                     mock_pipe = MagicMock()
                     mock_pipe.run = AsyncMock(return_value=mock_result)
                     MockPipeline.return_value = mock_pipe
@@ -404,19 +404,19 @@ stages:
 
     async def test_verbose_sets_debug(self, tmp_path):
         """verbose=True should set DEBUG logging."""
-        from osq.orchestrator import run_pipeline
-        from osq.pipeline.result import PipelineResult
+        from cloding.orchestrator import run_pipeline
+        from cloding.pipeline.result import PipelineResult
 
         config_path = self._write_config(tmp_path)
         mock_result = PipelineResult(success=True, run_id="v")
 
-        with patch("osq.orchestrator.prepare_workspace", new_callable=AsyncMock, return_value=""):
-            with patch("osq.orchestrator.Pipeline") as MockPipeline:
+        with patch("cloding.orchestrator.prepare_workspace", new_callable=AsyncMock, return_value=""):
+            with patch("cloding.orchestrator.Pipeline") as MockPipeline:
                 mock_pipe = MagicMock()
                 mock_pipe.run = AsyncMock(return_value=mock_result)
                 MockPipeline.return_value = mock_pipe
 
-                with patch("osq.orchestrator.init_logging") as mock_init:
+                with patch("cloding.orchestrator.init_logging") as mock_init:
                     result = await run_pipeline(
                         request="test",
                         config_path=config_path,

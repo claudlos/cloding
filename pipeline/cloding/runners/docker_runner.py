@@ -9,10 +9,10 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-from osq.core.errors import DockerError, StageError
-from osq.core.logger import get_logger
-from osq.pipeline.result import RunResult
-from osq.runners.base import BaseRunner
+from cloding.core.errors import DockerError, StageError
+from cloding.core.logger import get_logger
+from cloding.pipeline.result import RunResult
+from cloding.runners.base import BaseRunner
 
 # asyncio safe subprocess launcher (list args, no shell)
 _launch = asyncio.create_subprocess_exec

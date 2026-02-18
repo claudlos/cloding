@@ -1,7 +1,7 @@
 """Combines parallel coding results into a single StageResult."""
 
-from osq.core.logger import get_logger
-from osq.pipeline.result import StageResult
+from cloding.core.logger import get_logger
+from cloding.pipeline.result import StageResult
 
 logger = get_logger("merge", category="SYSTEM")
 

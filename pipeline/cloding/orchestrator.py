@@ -3,15 +3,15 @@
 import re
 from pathlib import Path
 
-from osq.core.config import PipelineConfig, load_config
-from osq.core.logger import get_logger, init_logging
-from osq.core.workspace import get_diff_summary, prepare_workspace
-from osq.models.cost_tracker import CostTracker
-from osq.pipeline.pipeline import Pipeline
-from osq.pipeline.result import PipelineResult
-from osq.pipeline.state import PipelineState
-from osq.runners.docker_runner import DockerRunner
-from osq.runners.local_runner import LocalRunner
+from cloding.core.config import PipelineConfig, load_config
+from cloding.core.logger import get_logger, init_logging
+from cloding.core.workspace import get_diff_summary, prepare_workspace
+from cloding.models.cost_tracker import CostTracker
+from cloding.pipeline.pipeline import Pipeline
+from cloding.pipeline.result import PipelineResult
+from cloding.pipeline.state import PipelineState
+from cloding.runners.docker_runner import DockerRunner
+from cloding.runners.local_runner import LocalRunner
 
 logger = get_logger("orchestrator", category="SYSTEM")
 

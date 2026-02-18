@@ -5,18 +5,18 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from osq.core.config import PipelineConfig
-from osq.core.errors import CostLimitError, ReviewRejectedError, StageError
-from osq.core.logger import get_logger
-from osq.fanout.merge import merge_results
-from osq.fanout.parallel_runner import run_tasks_parallel
-from osq.fanout.task_splitter import split_tasks
-from osq.models.cost_tracker import CostTracker
-from osq.models.registry import ModelRegistry
-from osq.pipeline.result import PipelineResult, StageResult
-from osq.pipeline.stage import create_stage
-from osq.pipeline.state import PipelineState
-from osq.runners.base import BaseRunner
+from cloding.core.config import PipelineConfig
+from cloding.core.errors import CostLimitError, ReviewRejectedError, StageError
+from cloding.core.logger import get_logger
+from cloding.fanout.merge import merge_results
+from cloding.fanout.parallel_runner import run_tasks_parallel
+from cloding.fanout.task_splitter import split_tasks
+from cloding.models.cost_tracker import CostTracker
+from cloding.models.registry import ModelRegistry
+from cloding.pipeline.result import PipelineResult, StageResult
+from cloding.pipeline.stage import create_stage
+from cloding.pipeline.state import PipelineState
+from cloding.runners.base import BaseRunner
 
 logger = get_logger("pipeline", category="SYSTEM")
 

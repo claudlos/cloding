@@ -4,12 +4,12 @@ import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from osq.core.config import ModelConfig, StageConfig
-from osq.core.logger import get_logger
-from osq.models.registry import ModelRegistry
-from osq.pipeline.result import RunResult, StageResult
-from osq.pipeline.state import PipelineState
-from osq.runners.base import BaseRunner
+from cloding.core.config import ModelConfig, StageConfig
+from cloding.core.logger import get_logger
+from cloding.models.registry import ModelRegistry
+from cloding.pipeline.result import RunResult, StageResult
+from cloding.pipeline.state import PipelineState
+from cloding.runners.base import BaseRunner
 
 
 class Stage(ABC):

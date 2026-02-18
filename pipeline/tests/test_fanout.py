@@ -2,11 +2,11 @@
 
 import pytest
 
-from osq.core.errors import StageError
-from osq.fanout.merge import merge_results
-from osq.fanout.task_splitter import split_tasks
-from osq.pipeline.result import StageResult
-from osq.pipeline.state import CodingTask
+from cloding.core.errors import StageError
+from cloding.fanout.merge import merge_results
+from cloding.fanout.task_splitter import split_tasks
+from cloding.pipeline.result import StageResult
+from cloding.pipeline.state import CodingTask
 
 
 # -- Sample PLAN.md content for tests --
@@ -186,7 +186,7 @@ class TestTaskSplitter:
 - **Priority**: 2
 - **Description**: Task two.
 """
-        with caplog.at_level(logging.WARNING, logger="osq.task_splitter"):
+        with caplog.at_level(logging.WARNING, logger="cloding.task_splitter"):
             tasks = split_tasks(plan)
 
         assert len(tasks) == 2

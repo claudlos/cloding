@@ -1,6 +1,6 @@
 """Model registry with cost estimation fallback."""
 
-from osq.core.config import ModelConfig
+from cloding.core.config import ModelConfig
 
 
 class ModelRegistry:

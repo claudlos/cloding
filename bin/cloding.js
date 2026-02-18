@@ -845,7 +845,7 @@ function main() {
       process.exit(1);
     }
 
-    const pythonArgs = ["-m", "osq", ...args.pipelineArgs];
+    const pythonArgs = ["-m", "cloding", ...args.pipelineArgs];
     console.log(`Running pipeline: python ${pythonArgs.join(" ")}`);
 
     // Pipeline inherits env but needs CLAUDECODE stripped.

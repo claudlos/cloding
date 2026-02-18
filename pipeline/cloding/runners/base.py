@@ -4,7 +4,7 @@ import json
 import re
 from abc import ABC, abstractmethod
 
-from osq.pipeline.result import RunResult
+from cloding.pipeline.result import RunResult
 
 
 class BaseRunner(ABC):

@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from osq.pipeline.result import StageResult
+from cloding.pipeline.result import StageResult
 
 
 @dataclass

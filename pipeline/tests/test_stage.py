@@ -6,8 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
-from osq.core.config import ModelConfig, StageConfig
-from osq.pipeline.stage import (
+from cloding.core.config import ModelConfig, StageConfig
+from cloding.pipeline.stage import (
     CodeStage,
     ExploreStage,
     PlanStage,
@@ -15,7 +15,7 @@ from osq.pipeline.stage import (
     create_stage,
     STAGE_CLASSES,
 )
-from osq.pipeline.state import PipelineState
+from cloding.pipeline.state import PipelineState
 
 
 def _make_model(**kwargs):
@@ -241,8 +241,8 @@ class TestBuildPrompt:
 
 # --- Tests for _make_result ---
 
-from osq.pipeline.result import RunResult
-from osq.models.registry import ModelRegistry
+from cloding.pipeline.result import RunResult
+from cloding.models.registry import ModelRegistry
 
 
 class TestMakeResult:
@@ -348,7 +348,7 @@ class TestMakeResult:
 
 # --- Tests for Stage.run() ---
 
-from osq.runners.base import BaseRunner
+from cloding.runners.base import BaseRunner
 
 
 class FakeStageRunner(BaseRunner):

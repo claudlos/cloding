@@ -7,7 +7,7 @@ from typing import Optional
 
 import yaml
 
-from osq.core.errors import ConfigError
+from cloding.core.errors import ConfigError
 
 
 @dataclass(frozen=True)

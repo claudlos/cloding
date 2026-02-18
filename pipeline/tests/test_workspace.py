@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 import pytest_asyncio
 
-from osq.core.errors import WorkspaceError
+from cloding.core.errors import WorkspaceError
 
 # We mock _launch globally so no real git commands run
-_MODULE = "osq.core.workspace"
+_MODULE = "cloding.core.workspace"
 
 
 @pytest.fixture
@@ -35,12 +35,12 @@ def mock_which_git():
 @pytest.mark.asyncio(loop_scope="function")
 class TestRunGit:
     async def test_run_git_returns_tuple(self, mock_which_git, mock_git):
-        from osq.core.workspace import _run_git
+        from cloding.core.workspace import _run_git
         code, stdout, stderr = await _run_git("status", cwd="/tmp")
         assert code == 0
 
     async def test_run_git_no_git_in_path(self):
-        from osq.core.workspace import _run_git
+        from cloding.core.workspace import _run_git
         with patch(f"{_MODULE}.shutil.which", return_value=None):
             with pytest.raises(WorkspaceError, match="git not found"):
                 await _run_git("status", cwd="/tmp")
@@ -49,7 +49,7 @@ class TestRunGit:
 @pytest.mark.asyncio(loop_scope="function")
 class TestIsGitRepo:
     async def test_is_git_repo_true(self, mock_which_git, mock_git):
-        from osq.core.workspace import is_git_repo
+        from cloding.core.workspace import is_git_repo
         result = await is_git_repo("/tmp/myrepo")
         assert result is True
 
@@ -61,7 +61,7 @@ class TestIsGitRepo:
             return proc
 
         with patch(f"{_MODULE}._launch", side_effect=_fail):
-            from osq.core.workspace import is_git_repo
+            from cloding.core.workspace import is_git_repo
             result = await is_git_repo("/tmp/notagit")
             assert result is False
 
@@ -76,7 +76,7 @@ class TestHasUncommittedChanges:
             return proc
 
         with patch(f"{_MODULE}._launch", side_effect=_clean):
-            from osq.core.workspace import has_uncommitted_changes
+            from cloding.core.workspace import has_uncommitted_changes
             assert await has_uncommitted_changes("/tmp") is False
 
     async def test_dirty_repo(self, mock_which_git):
@@ -87,7 +87,7 @@ class TestHasUncommittedChanges:
             return proc
 
         with patch(f"{_MODULE}._launch", side_effect=_dirty):
-            from osq.core.workspace import has_uncommitted_changes
+            from cloding.core.workspace import has_uncommitted_changes
             assert await has_uncommitted_changes("/tmp") is True
 
 
@@ -103,7 +103,7 @@ class TestStashChanges:
             return proc
 
         with patch(f"{_MODULE}._launch", side_effect=_stash):
-            from osq.core.workspace import stash_changes
+            from cloding.core.workspace import stash_changes
             assert await stash_changes("/tmp") is True
 
     async def test_stash_when_clean(self, mock_which_git):
@@ -116,7 +116,7 @@ class TestStashChanges:
             return proc
 
         with patch(f"{_MODULE}._launch", side_effect=_no_stash):
-            from osq.core.workspace import stash_changes
+            from cloding.core.workspace import stash_changes
             assert await stash_changes("/tmp") is False
 
 
@@ -130,7 +130,7 @@ class TestGetCurrentBranch:
             return proc
 
         with patch(f"{_MODULE}._launch", side_effect=_branch):
-            from osq.core.workspace import get_current_branch
+            from cloding.core.workspace import get_current_branch
             assert await get_current_branch("/tmp") == "main"
 
     async def test_raises_on_failure(self, mock_which_git):
@@ -141,7 +141,7 @@ class TestGetCurrentBranch:
             return proc
 
         with patch(f"{_MODULE}._launch", side_effect=_fail):
-            from osq.core.workspace import get_current_branch
+            from cloding.core.workspace import get_current_branch
             with pytest.raises(WorkspaceError, match="Failed to get"):
                 await get_current_branch("/tmp")
 
@@ -149,7 +149,7 @@ class TestGetCurrentBranch:
 @pytest.mark.asyncio(loop_scope="function")
 class TestCreateBranch:
     async def test_creates_branch(self, mock_which_git, mock_git):
-        from osq.core.workspace import create_branch
+        from cloding.core.workspace import create_branch
         branch = await create_branch("/tmp", "default")
         assert branch.startswith("cloding/default-")
 
@@ -161,7 +161,7 @@ class TestCreateBranch:
             return proc
 
         with patch(f"{_MODULE}._launch", side_effect=_fail):
-            from osq.core.workspace import create_branch
+            from cloding.core.workspace import create_branch
             with pytest.raises(WorkspaceError, match="Failed to create branch"):
                 await create_branch("/tmp", "default")
 
@@ -178,7 +178,7 @@ class TestGetDiffSummary:
             return proc
 
         with patch(f"{_MODULE}._launch", side_effect=_diff):
-            from osq.core.workspace import get_diff_summary
+            from cloding.core.workspace import get_diff_summary
             result = await get_diff_summary("/tmp")
             assert "file.py" in result
 
@@ -186,12 +186,12 @@ class TestGetDiffSummary:
 @pytest.mark.asyncio(loop_scope="function")
 class TestPrepareWorkspace:
     async def test_no_git_skips_everything(self, tmp_path):
-        from osq.core.workspace import prepare_workspace
+        from cloding.core.workspace import prepare_workspace
         result = await prepare_workspace(str(tmp_path), "test", no_git=True)
         assert result == ""
 
     async def test_nonexistent_workspace_raises(self):
-        from osq.core.workspace import prepare_workspace
+        from cloding.core.workspace import prepare_workspace
         with pytest.raises(WorkspaceError, match="does not exist"):
             await prepare_workspace("/nonexistent/path/xyz", "test")
 
@@ -203,7 +203,7 @@ class TestPrepareWorkspace:
             return proc
 
         with patch(f"{_MODULE}._launch", side_effect=_not_repo):
-            from osq.core.workspace import prepare_workspace
+            from cloding.core.workspace import prepare_workspace
             with pytest.raises(WorkspaceError, match="not a git repository"):
                 await prepare_workspace(str(tmp_path), "test")
 
@@ -237,7 +237,7 @@ class TestPrepareWorkspace:
             return proc
 
         with patch(f"{_MODULE}._launch", side_effect=_smart_git):
-            from osq.core.workspace import prepare_workspace
+            from cloding.core.workspace import prepare_workspace
             branch = await prepare_workspace(str(tmp_path), "default")
 
         assert branch.startswith("cloding/default-")
@@ -270,7 +270,7 @@ class TestPrepareWorkspace:
             return proc
 
         with patch(f"{_MODULE}._launch", side_effect=_smart_git):
-            from osq.core.workspace import prepare_workspace
+            from cloding.core.workspace import prepare_workspace
             branch = await prepare_workspace(str(tmp_path), "default")
 
         assert branch.startswith("cloding/default-")
@@ -301,7 +301,7 @@ class TestPrepareWorkspace:
             return proc
 
         with patch(f"{_MODULE}._launch", side_effect=_smart_git):
-            from osq.core.workspace import prepare_workspace
+            from cloding.core.workspace import prepare_workspace
             branch = await prepare_workspace(str(tmp_path), "quick")
 
         assert branch.startswith("cloding/quick-")

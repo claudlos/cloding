@@ -46,7 +46,7 @@ def init_logging(level: str = "INFO") -> None:
     if _initialized:
         return
 
-    root = logging.getLogger("osq")
+    root = logging.getLogger("cloding")
     root.setLevel(getattr(logging, level.upper(), logging.INFO))
 
     # On Windows, stdout defaults to cp1252 which can't handle Unicode chars
@@ -75,7 +75,7 @@ def get_logger(name: str, category: Optional[str] = None) -> logging.Logger:
     Returns:
         Configured logger instance
     """
-    logger = logging.getLogger(f"osq.{name}")
+    logger = logging.getLogger(f"cloding.{name}")
 
     if category:
         # Use a filter to inject the category (not a global record factory,

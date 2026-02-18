@@ -22,7 +22,7 @@ class ErrorContext:
     suggested_action: str
 
 
-class OSQError(Exception):
+class ClodingError(Exception):
     """Base exception for Cloding pipeline."""
 
     def __init__(self, message: str, context: Optional[ErrorContext] = None) -> None:
@@ -30,25 +30,25 @@ class OSQError(Exception):
         self.context = context
 
 
-class ConfigError(OSQError):
+class ConfigError(ClodingError):
     """Raised when YAML config is invalid or missing required values."""
 
 
-class StageError(OSQError):
+class StageError(ClodingError):
     """Raised when a pipeline stage fails."""
 
 
-class DockerError(OSQError):
+class DockerError(ClodingError):
     """Raised when Docker operations fail."""
 
 
-class CostLimitError(OSQError):
+class CostLimitError(ClodingError):
     """Raised when cost budget is exceeded."""
 
 
-class ReviewRejectedError(OSQError):
+class ReviewRejectedError(ClodingError):
     """Raised when review loop exhausts max iterations without passing."""
 
 
-class WorkspaceError(OSQError):
+class WorkspaceError(ClodingError):
     """Raised when workspace preparation fails (not a git repo, dirty state, etc.)."""

@@ -2,7 +2,7 @@
 
 import pytest
 
-from osq.core.config import (
+from cloding.core.config import (
     DockerConfig,
     FanoutConfig,
     ModelConfig,
@@ -10,13 +10,13 @@ from osq.core.config import (
     ReviewConfig,
     StageConfig,
 )
-from osq.core.errors import ReviewRejectedError, StageError
-from osq.models.registry import ModelRegistry
-from osq.pipeline.pipeline import Pipeline
-from osq.pipeline.result import StageResult
-from osq.pipeline.state import PipelineState
-from osq.runners.base import BaseRunner
-from osq.pipeline.result import RunResult
+from cloding.core.errors import ReviewRejectedError, StageError
+from cloding.models.registry import ModelRegistry
+from cloding.pipeline.pipeline import Pipeline
+from cloding.pipeline.result import StageResult
+from cloding.pipeline.state import PipelineState
+from cloding.runners.base import BaseRunner
+from cloding.pipeline.result import RunResult
 
 
 class FakeRunner(BaseRunner):

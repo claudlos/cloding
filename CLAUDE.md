@@ -35,7 +35,7 @@ cloding pipeline --resume code --run-id <id> "original request"
 cd pipeline && pip install -r requirements-dev.txt
 cd pipeline && pytest tests/ -v -p no:anchorpy    # 174 tests, all async
 cd pipeline && pytest tests/ -v --tb=short         # Shorter output
-cd pipeline && pytest tests/ --cov=osq --cov-report=term-missing  # Coverage (80%+ required)
+cd pipeline && pytest tests/ --cov=cloding --cov-report=term-missing  # Coverage (80%+ required)
 ```
 
 ## Architecture
@@ -68,16 +68,16 @@ Files:
 ### Pipeline Mode (Python)
 4-stage pipeline: Plan → Explore → Code → Review, with parallel fan-out.
 
-- **pipeline/osq/**: Python package root
+- **pipeline/cloding/**: Python package root
   - **`__init__.py`**: Package init, exports `__version__ = "0.1.0"`
-  - **`__main__.py`**: Allows `python -m osq` invocation
+  - **`__main__.py`**: Allows `python -m cloding` invocation
   - **orchestrator.py**: Top-level: load config → prepare workspace → build pipeline → run → report
-- **pipeline/osq/core/**: Config loader, errors, logger, workspace git prep
-- **pipeline/osq/pipeline/**: Stage base + concrete stages (Plan/Explore/Code/Review), pipeline sequencer, state, results
-- **pipeline/osq/runners/**: BaseRunner ABC, LocalRunner (direct CLI via asyncio subprocess), DockerRunner (containers)
-- **pipeline/osq/fanout/**: Task splitter, parallel runner (asyncio.Semaphore), merge
-- **pipeline/osq/models/**: Model registry (config-based cost estimation for OpenRouter), cost tracker with CSV export
-- **pipeline/osq/cli/**: Argparse CLI entry point (`cloding-pipeline` script)
+- **pipeline/cloding/core/**: Config loader, errors, logger, workspace git prep
+- **pipeline/cloding/pipeline/**: Stage base + concrete stages (Plan/Explore/Code/Review), pipeline sequencer, state, results
+- **pipeline/cloding/runners/**: BaseRunner ABC, LocalRunner (direct CLI via asyncio subprocess), DockerRunner (containers)
+- **pipeline/cloding/fanout/**: Task splitter, parallel runner (asyncio.Semaphore), merge
+- **pipeline/cloding/models/**: Model registry (config-based cost estimation for OpenRouter), cost tracker with CSV export
+- **pipeline/cloding/cli/**: Argparse CLI entry point (`cloding-pipeline` script)
 - **pipeline/configs/**: 8 YAML pipeline configs (see below)
 - **pipeline/prompts/**: Stage prompt templates (plan.txt, explore.txt, code.txt, review.txt)
 
@@ -87,15 +87,15 @@ Files:
 |------|---------|
 | `bin/cloding.js` | Node.js CLI — sets env vars, spawns claude, manages Docker, delegates pipeline |
 | `models.json` | Model shortcuts with OpenRouter IDs, names, and costs |
-| `pipeline/osq/orchestrator.py` | Top-level pipeline orchestration |
-| `pipeline/osq/pipeline/pipeline.py` | Pipeline sequencer, review loop, checkpoints |
-| `pipeline/osq/pipeline/stage.py` | Stage ABC + PlanStage, ExploreStage, CodeStage, ReviewStage |
-| `pipeline/osq/core/config.py` | YAML config loading + dataclass hierarchy |
-| `pipeline/osq/core/workspace.py` | Git workspace prep: branch creation (`cloding/`), stash, safety checks |
-| `pipeline/osq/runners/local_runner.py` | Runs claude CLI via asyncio subprocess |
-| `pipeline/osq/runners/docker_runner.py` | Runs claude CLI in Docker containers |
-| `pipeline/osq/models/registry.py` | Model registry + config-based cost estimation (primary cost source for OpenRouter) |
-| `pipeline/osq/models/cost_tracker.py` | Per-stage cost tracking with CSV export |
+| `pipeline/cloding/orchestrator.py` | Top-level pipeline orchestration |
+| `pipeline/cloding/pipeline/pipeline.py` | Pipeline sequencer, review loop, checkpoints |
+| `pipeline/cloding/pipeline/stage.py` | Stage ABC + PlanStage, ExploreStage, CodeStage, ReviewStage |
+| `pipeline/cloding/core/config.py` | YAML config loading + dataclass hierarchy |
+| `pipeline/cloding/core/workspace.py` | Git workspace prep: branch creation (`cloding/`), stash, safety checks |
+| `pipeline/cloding/runners/local_runner.py` | Runs claude CLI via asyncio subprocess |
+| `pipeline/cloding/runners/docker_runner.py` | Runs claude CLI in Docker containers |
+| `pipeline/cloding/models/registry.py` | Model registry + config-based cost estimation (primary cost source for OpenRouter) |
+| `pipeline/cloding/models/cost_tracker.py` | Per-stage cost tracking with CSV export |
 | `pipeline/docker/Dockerfile` | Docker image definition (non-root user, resource isolation) |
 
 ## Pipeline Configs
@@ -147,14 +147,14 @@ Any OpenRouter model ID also works: `cloding -m meta-llama/llama-4-scout`
 - Dev dependencies: `pytest>=8.0`, `pytest-asyncio>=0.23`, `black`, `isort`, `ruff`, `mypy`, `coverage`
 - Coverage: **80.6%** (target: 80%, configured in `pyproject.toml [tool.coverage.report] fail_under = 80`)
 - Run: `cd pipeline && pytest tests/ -v -p no:anchorpy`
-- Run with coverage: `cd pipeline && pytest tests/ --cov=osq --cov-report=term-missing`
+- Run with coverage: `cd pipeline && pytest tests/ --cov=cloding --cov-report=term-missing`
 - Note: `-p no:anchorpy` disables anchorpy plugin if installed (conflicts with pytest-asyncio)
 
 ## Code Style
 
 - **Node.js**: Zero dependencies, vanilla JS, CommonJS require. No build step.
 - **Python**: Line length 100 (black), type hints, Google-style docstrings
-- Custom error hierarchy in `pipeline/osq/core/errors.py` (OSQError base → ConfigError, RunnerError, CostError, ReviewRejectedError, WorkspaceError)
+- Custom error hierarchy in `pipeline/cloding/core/errors.py` (ClodingError base → ConfigError, RunnerError, CostError, ReviewRejectedError, WorkspaceError)
 - Logger via `get_logger("name", category="CAT")` — categories: SYSTEM, STAGE, DOCKER, COST, REVIEW, FANOUT, WORKSPACE
 - Subprocess safety: `asyncio.create_subprocess_exec` (no shell) aliased as `_launch`
 - Exit code handling: `process.exit(code ?? 0)` (nullish coalescing, not `||`)

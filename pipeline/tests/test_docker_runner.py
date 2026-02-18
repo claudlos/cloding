@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from osq.core.errors import DockerError, StageError
-from osq.runners.docker_runner import DockerRunner
+from cloding.core.errors import DockerError, StageError
+from cloding.runners.docker_runner import DockerRunner
 
-_MODULE = "osq.runners.docker_runner"
+_MODULE = "cloding.runners.docker_runner"
 
 
 class TestDockerCommandBuild:
@@ -325,7 +325,7 @@ class TestEnsureImage:
         (fake_docker_dir / "Dockerfile").write_text("FROM node:22\n", encoding="utf-8")
 
         # Patch __file__ in the module so the resolution goes to our tmp_path
-        fake_file = str(tmp_path / "osq" / "runners" / "docker_runner.py")
+        fake_file = str(tmp_path / "cloding" / "runners" / "docker_runner.py")
         with patch(f"{_MODULE}.__file__", fake_file):
             with patch(f"{_MODULE}._launch", side_effect=_fake_launch):
                 await DockerRunner.ensure_image("test:default-dir")

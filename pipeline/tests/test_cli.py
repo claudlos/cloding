@@ -6,17 +6,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from osq.cli.main import build_parser, main
+from cloding.cli.main import build_parser, main
 
 
 class TestDunderMain:
     def test_dunder_main_calls_main(self):
-        """python -m osq should call main()."""
-        with patch("osq.cli.main.main", side_effect=SystemExit(0)) as mock_main:
+        """python -m cloding should call main()."""
+        with patch("cloding.cli.main.main", side_effect=SystemExit(0)) as mock_main:
             with pytest.raises(SystemExit):
                 import importlib
-                import osq.__main__
-                importlib.reload(osq.__main__)
+                import cloding.__main__
+                importlib.reload(cloding.__main__)
             mock_main.assert_called()
 
 
@@ -151,7 +151,7 @@ stages:
     prompt_file: prompts/code.txt
 """, encoding="utf-8")
 
-        with patch("osq.cli.main.asyncio.run", return_value=mock_result):
+        with patch("cloding.cli.main.asyncio.run", return_value=mock_result):
             with pytest.raises(SystemExit) as exc_info:
                 main()
             assert exc_info.value.code == 0
@@ -182,7 +182,7 @@ stages:
     prompt_file: prompts/code.txt
 """, encoding="utf-8")
 
-        with patch("osq.cli.main.asyncio.run", return_value=mock_result):
+        with patch("cloding.cli.main.asyncio.run", return_value=mock_result):
             with pytest.raises(SystemExit) as exc_info:
                 main()
             assert exc_info.value.code == 1
@@ -222,7 +222,7 @@ stages:
                 raise ModuleNotFoundError("No module named 'dotenv'")
             return original_import(name, *args, **kwargs)
 
-        with patch("osq.cli.main.asyncio.run", return_value=mock_result):
+        with patch("cloding.cli.main.asyncio.run", return_value=mock_result):
             with patch("builtins.__import__", side_effect=_mock_import):
                 with pytest.raises(SystemExit) as exc_info:
                     main()

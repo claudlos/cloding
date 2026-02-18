@@ -9,11 +9,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from osq.core.errors import StageError
-from osq.runners.base import BaseRunner
-from osq.runners.local_runner import LocalRunner, _resolve_claude_binary
+from cloding.core.errors import StageError
+from cloding.runners.base import BaseRunner
+from cloding.runners.local_runner import LocalRunner, _resolve_claude_binary
 
-_MODULE = "osq.runners.local_runner"
+_MODULE = "cloding.runners.local_runner"
 
 
 class TestBaseRunnerParsing:

@@ -5,7 +5,7 @@ import asyncio
 import sys
 from pathlib import Path
 
-from osq import __version__
+from cloding import __version__
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -105,7 +105,7 @@ def main() -> None:
         context_files = [f.strip() for f in args.context_files.split(",")]
 
     # Import here to avoid slow startup for --help/--version
-    from osq.orchestrator import run_pipeline
+    from cloding.orchestrator import run_pipeline
 
     result = asyncio.run(run_pipeline(
         request=request or "",
