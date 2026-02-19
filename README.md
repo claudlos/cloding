@@ -1,23 +1,52 @@
 # ⚡ cloding
 
+░█████╗░██╗░░░░░░█████╗░██████╗░██╗███╗░░██╗░██████╗░
+██╔══██╗██║░░░░░██╔══██╗██╔══██╗██║████╗░██║██╔════╝░
+██║░░╚═╝██║░░░░░██║░░██║██║░░██║██║██╔██╗██║██║░░██╗░
+██║░░██╗██║░░░░░██║░░██║██║░░██║██║██║╚██╗██║██║░░╚██╗
+╚█████╔╝███████╗╚█████╔╝██████╔╝██║██║░╚████║╚██████╔╝
+░╚════╝░╚══════╝░╚════╝░╚═════╝░╚═╝╚═╝░░╚═══╝░╚═════╝
+
 **Code with any model via OpenRouter.**
 
-Claude Code costs $5/$25 per Mtok. Qwen 3 Coder costs $0.07/$0.30. That's 71x cheaper on input, 83x cheaper on output.
+Claude Opus 4.6 costs $5/$25 per Mtok.
+Qwen 3 Coder Next costs $0.07/$0.30.
+That's 71x cheaper on input, 83x cheaper on output.
 
-Cloding lets you run Claude Code — tools, file editing, terminal access, the whole thing — with any OpenRouter model. Same experience, fraction of the cost.
-
-```
-npm install -g cloding
-```
+Code with any LLM in a Docker sandbox. Configurable multi-stage code orchestration via Claude Code + OpenRouter.
 
 ## Quick Start
-
 ```bash
+Install Claude Code
+
+macOS, Linux, WSL:
+curl -fsSL https://claude.ai/install.sh | bash
+
+Windows PowerShell:
+irm https://claude.ai/install.ps1 | iex
+
+npm install -g @anthropic-ai/claude-code
+
+Install Cloding
+
+npm install -g cloding
 export OPENROUTER_API_KEY=sk-or-v1-your-key-here
 cloding
 ```
 
-You're now running Claude Code with Qwen 3 Coder at **$0.07/Mtok input** instead of $5/Mtok.
+Runs Claude Code with Qwen 3 Coder Next. $0.07/Mtok input vs $5/Mtok.
+
+Switch models anytime:
+```bash
+cloding -m sonnet          # Claude Sonnet 4.6
+cloding -m qwen            # Qwen 3 Coder Next
+cloding --list-models      # see all options + pricing
+```
+
+Run sandboxed in Docker:
+```bash
+cloding docker build && cloding docker shell
+```
 
 ## Usage
 
@@ -41,14 +70,12 @@ cloding --allowedTools Read,Write,Bash
 
 | Shortcut | Model | Input $/Mtok | Output $/Mtok | vs Claude Code |
 |----------|-------|-------------|---------------|----------------|
-| `qwen` | Qwen 3 Coder | $0.07 | $0.30 | **71x cheaper** |
+| `qwen` | Qwen 3 Coder Next | $0.07 | $0.30 | **71x cheaper** |
 | `deepseek` | DeepSeek Coder V3 | $0.14 | $0.28 | **36x cheaper** |
 | `haiku` | Claude Haiku 4.5 | $0.80 | $4.00 | 6x cheaper |
 | `gemini` | Gemini 2.5 Pro | $1.25 | $10.00 | 4x cheaper |
 | `sonnet` | Claude Sonnet 4 | $3.00 | $15.00 | 1.7x cheaper |
 | `opus` | Claude Opus 4.6 | $15.00 | $75.00 | 3x more expensive |
-
-> A 30-minute coding session that costs ~$5 with Claude Code costs ~$0.07 with Qwen. Same tools, same workflow.
 
 ## Docker Mode
 
