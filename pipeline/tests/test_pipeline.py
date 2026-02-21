@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from cloding.pipeline.result import PipelineResult, RunResult, StageResult
+from cloding.pipeline.result import PipelineResult, RunResult, StageResult, VerifyAgentResult
 from cloding.pipeline.state import CodingTask, PipelineState
 
 
@@ -85,6 +85,40 @@ class TestPipelineState:
         assert recovered[1].priority == 2
 
 
+class TestVerifyAgentResult:
+    def test_defaults(self):
+        r = VerifyAgentResult(model="opus", passed=True)
+        assert r.feedback == ""
+        assert r.cost_usd == 0.0
+        assert r.tokens_in == 0
+        assert r.tokens_out == 0
+
+    def test_failed_with_feedback(self):
+        r = VerifyAgentResult(
+            model="qwen/qwen3-coder-next",
+            passed=False,
+            feedback="Missing error handling",
+            cost_usd=0.05,
+            tokens_in=500,
+            tokens_out=200,
+        )
+        assert r.passed is False
+        assert r.feedback == "Missing error handling"
+        assert r.cost_usd == 0.05
+
+    def test_all_fields(self):
+        r = VerifyAgentResult(
+            model="opus",
+            passed=True,
+            feedback="",
+            cost_usd=0.10,
+            tokens_in=1000,
+            tokens_out=500,
+        )
+        assert r.model == "opus"
+        assert r.tokens_in == 1000
+
+
 class TestPipelineResult:
     def test_success(self):
         r = PipelineResult(success=True, total_cost_usd=0.75, run_id="r1")
@@ -95,3 +129,23 @@ class TestPipelineResult:
         r = PipelineResult(success=False, error="Stage failed", run_id="r2")
         assert r.success is False
         assert r.error == "Stage failed"
+
+    def test_verify_fields_defaults(self):
+        r = PipelineResult(success=True, run_id="r3")
+        assert r.verify_results == []
+        assert r.verify_consensus is False
+
+    def test_verify_fields_populated(self):
+        results = [
+            VerifyAgentResult(model="opus", passed=True),
+            VerifyAgentResult(model="qwen", passed=False, feedback="Bad code"),
+        ]
+        r = PipelineResult(
+            success=True, run_id="r4",
+            verify_results=results,
+            verify_consensus=False,
+        )
+        assert len(r.verify_results) == 2
+        assert r.verify_consensus is False
+        assert r.verify_results[0].passed is True
+        assert r.verify_results[1].passed is False

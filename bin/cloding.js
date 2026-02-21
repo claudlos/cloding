@@ -527,6 +527,7 @@ function dockerRun(dockerArgs, models, interactive) {
 
   // Resolve model
   const model = resolveModel(modelArg, models);
+  const tool = model.tool || "claude";
 
   // Validate workspace exists and is a directory
   if (!fs.existsSync(workspace)) {
@@ -548,13 +549,17 @@ function dockerRun(dockerArgs, models, interactive) {
   }
 
   // Write env vars to a temp file so the API key doesn't leak in `ps aux`
-  const envFileContent = [
+  const envVars = [
     `ANTHROPIC_BASE_URL=${OPENROUTER_BASE_URL}`,
     `ANTHROPIC_AUTH_TOKEN=${apiKey}`,
     `ANTHROPIC_API_KEY=`,
     `ANTHROPIC_MODEL=${model.id}`,
     `CLAUDECODE=`,
-  ].join("\n") + "\n";
+    `GEMINI_API_KEY=${apiKey}`,
+    `OPENCODE_API_KEY=${apiKey}`,
+    `OPENAI_API_KEY=${apiKey}`,
+  ];
+  const envFileContent = envVars.join("\n") + "\n";
   const envFilePath = path.join(os.tmpdir(), `cloding-env-${Date.now()}.tmp`);
   fs.writeFileSync(envFilePath, envFileContent, { mode: 0o600 });
 
@@ -575,14 +580,33 @@ function dockerRun(dockerArgs, models, interactive) {
     "--memory", memory,
     "--cpus", cpus,
     "-v", `${workspace}:/workspace`,
-    "--env-file", envFilePath,
-    DOCKER_IMAGE
+    "--env-file", envFilePath
   );
 
-  // Add claude args
-  if (!interactive && prompt) {
-    cmd.push("-p", prompt);
+  if (tool !== "claude") {
+    cmd.push("--entrypoint", tool);
   }
+
+  cmd.push(DOCKER_IMAGE);
+
+  // Add tool-specific args
+  if (!interactive && prompt) {
+    if (tool === "claude" || tool === "gemini") {
+      cmd.push("-p", prompt);
+    } else if (tool === "opencode") {
+      cmd.push("run", prompt);
+    } else if (tool === "codex") {
+      cmd.push(prompt);
+    }
+  }
+
+  if (tool === "gemini") {
+    cmd.push("--non-interactive");
+    if (model.id) cmd.push("--model", model.id);
+  } else if (tool === "opencode" && model.id) {
+    cmd.push("--model", model.id);
+  }
+
   cmd.push(...extraClaudeArgs);
 
   // Print banner
@@ -591,6 +615,7 @@ function dockerRun(dockerArgs, models, interactive) {
   console.log(
     `\x1b[36m⚡ cloding docker\x1b[0m → ${model.name}${costInfo}`
   );
+  console.log(`  Tool: ${tool}`);
   console.log(`  Container: ${containerName}`);
   console.log(`  Workspace: ${workspace} → /workspace`);
   console.log(`  Resources: ${memory} RAM, ${cpus} CPUs`);
@@ -882,27 +907,45 @@ function main() {
     process.exit(1);
   }
 
-  // ── Simple mode: launch claude with OpenRouter ──
+  // ── Simple mode: launch tool with OpenRouter ──
   const model = resolveModel(args.model, models);
+  const tool = model.tool || "claude";
 
-  // Build env for claude
-  const claudeEnv = { ...process.env };
-  claudeEnv.ANTHROPIC_BASE_URL = OPENROUTER_BASE_URL;
-  claudeEnv.ANTHROPIC_AUTH_TOKEN = apiKey;
-  claudeEnv.ANTHROPIC_API_KEY = "";
-  claudeEnv.ANTHROPIC_MODEL = model.id;
+  // Build env for tool
+  const runEnv = { ...process.env };
+  
+  if (tool === "claude") {
+    runEnv.ANTHROPIC_BASE_URL = OPENROUTER_BASE_URL;
+    runEnv.ANTHROPIC_AUTH_TOKEN = apiKey;
+    runEnv.ANTHROPIC_API_KEY = "";
+    runEnv.ANTHROPIC_MODEL = model.id;
+    // Don't inherit CLAUDECODE — prevents "cannot launch inside another session" error
+    delete runEnv.CLAUDECODE;
+  } else if (tool === "gemini") {
+    runEnv.GEMINI_API_KEY = apiKey;
+  }
 
-  // Don't inherit CLAUDECODE — prevents "cannot launch inside another session" error
-  delete claudeEnv.CLAUDECODE;
-
-  // Build claude args
-  const claudeArgs = [...args.claudeArgs];
+  // Build tool args
+  const runArgs = [...args.claudeArgs];
   if (args.prompt) {
-    claudeArgs.push("-p", args.prompt);
+    if (tool === "claude" || tool === "gemini") {
+      runArgs.push("-p", args.prompt);
+    } else if (tool === "opencode") {
+      runArgs.unshift("run");
+      runArgs.push(args.prompt);
+    } else if (tool === "codex") {
+      runArgs.push(args.prompt);
+    }
+  }
+
+  if (tool === "gemini") {
+    runArgs.push("--non-interactive");
+    if (model.id) runArgs.push("--model", model.id);
+  } else if (tool === "opencode" && model.id) {
+    runArgs.push("--model", model.id);
   }
 
   // Print banner
-  const shortcut = args.model || process.env.CLODING_DEFAULT_MODEL || DEFAULT_MODEL;
   const costInfo =
     model.in > 0
       ? ` ($${model.in}/$${model.out} per Mtok)`
@@ -917,13 +960,12 @@ function main() {
   }
   console.log("");
 
-  // Launch claude
+  // Launch tool
   // On Windows, npm globals are .cmd shims that need shell:true for resolution.
-  // We pass args as an array and let Node handle escaping — never build a command string.
   const isWin = process.platform === "win32";
-  const child = spawn("claude", claudeArgs, {
+  const child = spawn(tool, runArgs, {
     stdio: "inherit",
-    env: claudeEnv,
+    env: runEnv,
     shell: isWin,
   });
   forwardSignals(child);
@@ -932,12 +974,11 @@ function main() {
   child.on("error", (err) => {
     if (err.code === "ENOENT") {
       console.error(
-        "Error: 'claude' command not found.\n\n" +
-          "Install Claude Code first:\n" +
-          "  npm install -g @anthropic-ai/claude-code\n"
+        `Error: '${tool}' command not found.\n\n` +
+          `Install ${tool} first.`
       );
     } else {
-      console.error(`Error launching claude: ${err.message}`);
+      console.error(`Error launching ${tool}: ${err.message}`);
     }
     process.exit(1);
   });

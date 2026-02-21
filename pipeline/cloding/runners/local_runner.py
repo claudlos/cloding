@@ -15,29 +15,22 @@ from cloding.runners.base import BaseRunner
 _launch = asyncio.create_subprocess_exec
 
 
-def _resolve_claude_binary() -> tuple[str, list[str]]:
-    """Resolve the actual Claude Code binary, handling Windows .CMD wrappers.
+def _resolve_binary(binary_name: str) -> tuple[str, list[str]]:
+    """Resolve the actual binary, handling Windows .CMD wrappers for Claude."""
+    binary_path = shutil.which(binary_name)
+    if not binary_path:
+        # Special case for 'claude' if not found but 'claude.cmd' might be
+        if binary_name == "claude":
+            raise StageError(
+                "Claude Code CLI not found in PATH. "
+                "Install with: npm i -g @anthropic-ai/claude-code"
+            )
+        raise StageError(f"Binary '{binary_name}' not found in PATH.")
 
-    On Windows, `shutil.which("claude")` returns a `.CMD` batch wrapper
-    that doesn't work correctly with `create_subprocess_exec` (which skips
-    shell interpretation). We resolve to the underlying `node` + `cli.js`
-    call instead.
-
-    Returns:
-        Tuple of (executable_path, prefix_args) where prefix_args contains
-        any extra arguments needed before the claude CLI args.
-    """
-    claude_path = shutil.which("claude")
-    if not claude_path:
-        raise StageError(
-            "Claude Code CLI not found in PATH. "
-            "Install with: npm i -g @anthropic-ai/claude-code"
-        )
-
-    # On Windows, .CMD wrappers need special handling
-    if platform.system() == "Windows" and claude_path.lower().endswith(".cmd"):
+    # On Windows, .CMD wrappers for 'claude' need special handling
+    if binary_name == "claude" and platform.system() == "Windows" and binary_path.lower().endswith(".cmd"):
         # The .CMD wrapper calls: node "<dir>/node_modules/@anthropic-ai/claude-code/cli.js" %*
-        cmd_dir = Path(claude_path).parent
+        cmd_dir = Path(binary_path).parent
         cli_js = cmd_dir / "node_modules" / "@anthropic-ai" / "claude-code" / "cli.js"
 
         if cli_js.exists():
@@ -51,17 +44,17 @@ def _resolve_claude_binary() -> tuple[str, list[str]]:
             return claude_exe, []
 
         # Last resort: use cmd /c to run the .CMD properly
-        return os.environ.get("COMSPEC", "cmd.exe"), ["/c", claude_path]
+        return os.environ.get("COMSPEC", "cmd.exe"), ["/c", binary_path]
 
-    return claude_path, []
+    return binary_path, []
 
 
 class LocalRunner(BaseRunner):
-    """Runs Claude Code CLI directly on the host (no Docker).
+    """Runs CLI tools directly on the host (no Docker).
 
     Uses asyncio.create_subprocess_exec which is safe from shell injection
     as it calls the binary directly without shell interpretation.
-    On Windows, resolves .CMD wrappers to their underlying node binary.
+    On Windows, resolves .CMD wrappers for Claude to their underlying node binary.
     """
 
     def __init__(self, workspace_path: str = "") -> None:
@@ -69,20 +62,21 @@ class LocalRunner(BaseRunner):
         self.logger = get_logger("local_runner", category="SYSTEM")
 
     async def run(
-        self, env: dict[str, str], cli_args: list[str], timeout: int
+        self, binary_name: str, env: dict[str, str], cli_args: list[str], timeout: int
     ) -> RunResult:
         """
-        Run Claude Code locally via subprocess.
+        Run CLI tool locally via subprocess.
 
         Args:
+            binary_name: Tool binary name (e.g. "claude", "gemini")
             env: Environment variables to inject
-            cli_args: Claude CLI arguments
+            cli_args: CLI arguments
             timeout: Timeout in seconds
 
         Returns:
             RunResult with parsed output
         """
-        exe_path, prefix_args = _resolve_claude_binary()
+        exe_path, prefix_args = _resolve_binary(binary_name)
 
         # Build subprocess environment
         run_env = os.environ.copy()

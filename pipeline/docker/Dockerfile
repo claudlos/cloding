@@ -14,6 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Claude Code CLI globally
 RUN npm install -g @anthropic-ai/claude-code
 
+# Install Gemini CLI, OpenCode, and Codex
+RUN npm install -g @google/gemini-cli opencode-ai@latest @openai/codex
+
 # Create non-root user for security
 RUN groupadd -r coder && useradd -r -g coder -m -s /bin/bash coder
 

@@ -47,14 +47,15 @@ class DockerRunner(BaseRunner):
         self.logger = get_logger("docker_runner", category="DOCKER")
 
     async def run(
-        self, env: dict[str, str], cli_args: list[str], timeout: int
+        self, binary_name: str, env: dict[str, str], cli_args: list[str], timeout: int
     ) -> RunResult:
         """
-        Run Claude Code in a Docker container.
+        Run CLI tool in a Docker container.
 
         Args:
+            binary_name: Tool binary name (e.g. "claude", "gemini")
             env: Environment variables to inject
-            cli_args: Claude CLI arguments
+            cli_args: CLI arguments
             timeout: Timeout in seconds
 
         Returns:
@@ -67,12 +68,13 @@ class DockerRunner(BaseRunner):
                 "  https://docs.docker.com/get-docker/"
             )
 
-        cmd = self._build_command(env, cli_args)
+        cmd = self._build_command(binary_name, env, cli_args)
 
         self.logger.info(
-            "Running in Docker: %s (model: %s)",
+            "Running in Docker: %s (tool: %s, model: %s)",
             self.image,
-            env.get("ANTHROPIC_MODEL", "?"),
+            binary_name,
+            env.get("ANTHROPIC_MODEL", env.get("GEMINI_API_KEY", "?")),
         )
         if self.container_name:
             self.logger.info("Container: %s", self.container_name)
@@ -123,7 +125,7 @@ class DockerRunner(BaseRunner):
             raise StageError(f"Docker runner failed: {err}") from err
 
     def _build_command(
-        self, env: dict[str, str], cli_args: list[str]
+        self, binary_name: str, env: dict[str, str], cli_args: list[str]
     ) -> list[str]:
         """Build the full docker run command as an argument list."""
         cmd = [
@@ -146,9 +148,22 @@ class DockerRunner(BaseRunner):
             cmd.extend(["-e", f"{key}={value}"])
 
         # Always strip CLAUDECODE to prevent nesting errors
-        cmd.extend(["-e", "CLAUDECODE="])
+        if "CLAUDECODE" not in env:
+            cmd.extend(["-e", "CLAUDECODE="])
 
         cmd.append(self.image)
+        # Entrypoint is currently hardcoded to 'claude' in Dockerfile.
+        # We should use --entrypoint if the binary_name is different.
+        if binary_name != "claude":
+            # This is a bit tricky because 'claude' is the entrypoint in Dockerfile.
+            # We can override it.
+            # But wait, Dockerfile says ENTRYPOINT ["claude"].
+            # So if we run 'docker run image gemini args', it might try to run 'claude gemini args'.
+            # We should use --entrypoint.
+            # However, --entrypoint must come before the image name.
+            cmd.insert(cmd.index(self.image), "--entrypoint")
+            cmd.insert(cmd.index(self.image), binary_name)
+
         cmd.extend(cli_args)
         return cmd
 

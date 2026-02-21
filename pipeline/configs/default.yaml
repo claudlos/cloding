@@ -51,6 +51,22 @@ stages:
     max_budget_usd: 2.00
     timeout_seconds: 900
 
+  - name: test
+    model: qwen
+    prompt_file: prompts/test.txt
+    max_turns: 30
+    max_budget_usd: 1.00
+    timeout_seconds: 600
+    allowed_tools: [Read, Bash, Grep, Glob, Edit, Write]
+
+  - name: lint
+    model: qwen
+    prompt_file: prompts/lint.txt
+    max_turns: 15
+    max_budget_usd: 0.50
+    timeout_seconds: 300
+    allowed_tools: [Read, Bash, Grep, Glob, Edit, Write]
+
   - name: review
     model: opus
     prompt_file: prompts/review.txt
@@ -69,6 +85,18 @@ fanout:
 review:
   max_iterations: 3
   pass_threshold: "PASS"
+
+verify:
+  enabled: true
+  agents:
+    - model: opus
+      prompt_file: prompts/verify.txt
+    - model: haiku
+      prompt_file: prompts/verify.txt
+    - model: qwen
+      prompt_file: prompts/verify.txt
+  consensus_threshold: 0.67
+  max_iterations: 3
 
 docker:
   image: cloding:latest

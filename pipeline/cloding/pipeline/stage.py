@@ -6,6 +6,7 @@ from pathlib import Path
 
 from cloding.core.config import ModelConfig, StageConfig
 from cloding.core.logger import get_logger
+from cloding.core.tool_handler import ToolHandler, get_tool_handler
 from cloding.models.registry import ModelRegistry
 from cloding.pipeline.result import RunResult, StageResult
 from cloding.pipeline.state import PipelineState
@@ -25,58 +26,36 @@ class Stage(ABC):
         self.model_config = model_config
         self.prompts_dir = prompts_dir
         self.logger = get_logger(f"stage.{config.name}", category="STAGE")
+        
+        # Resolve tool handler
+        tool_name = config.tool or model_config.tool or "claude-code"
+        self.tool_handler = get_tool_handler(tool_name)
 
     def build_env(self) -> dict[str, str]:
-        """Build environment variables for the Claude Code invocation."""
-        env: dict[str, str] = {}
-        api_key = os.environ.get(self.model_config.api_key_env, "")
-
-        if not api_key:
-            self.logger.warning(
-                "API key env '%s' is empty or not set", self.model_config.api_key_env
-            )
-
-        if self.model_config.provider == "openrouter":
-            env["ANTHROPIC_BASE_URL"] = (
-                self.model_config.base_url or "https://openrouter.ai/api"
-            )
-            env["ANTHROPIC_AUTH_TOKEN"] = api_key
-            env["ANTHROPIC_API_KEY"] = ""
-            env["ANTHROPIC_MODEL"] = self.model_config.model_id
-        else:
-            # Direct Anthropic API
-            env["ANTHROPIC_API_KEY"] = api_key
-            env["ANTHROPIC_MODEL"] = self.model_config.model_id
-
-        return env
+        """Build environment variables for the tool invocation."""
+        return self.tool_handler.build_env(self.model_config)
 
     def build_cli_args(self, prompt: str) -> list[str]:
-        """Build the claude CLI argument list.
-
-        Note: Model is set via ANTHROPIC_MODEL env var (in build_env),
-        not via --model flag — avoids conflicts when routing through OpenRouter.
-        """
-        args = [
-            "-p", prompt,
-            "--output-format", self.config.output_format,
-            "--max-turns", str(self.config.max_turns),
-            "--dangerously-skip-permissions",
-        ]
-
-        if self.config.allowed_tools:
-            args.extend(["--allowedTools", ",".join(self.config.allowed_tools)])
-
-        if self.config.disallowed_tools:
-            args.extend(["--disallowedTools", ",".join(self.config.disallowed_tools)])
-
-        return args
+        """Build the tool CLI argument list."""
+        return self.tool_handler.build_cli_args(self.config, self.model_config, prompt)
 
     def load_prompt(self) -> str:
-        """Load the prompt template from file."""
-        path = Path(self.prompts_dir) / Path(self.config.prompt_file).name
+        """Load the prompt template from file.
+
+        Resolution order:
+        1. prompts_dir / filename (explicit prompts directory)
+        2. prompt_file as-is (absolute or relative to CWD)
+        3. Fallback: pipeline package's prompts/ directory
+        """
+        filename = Path(self.config.prompt_file).name
+        path = Path(self.prompts_dir) / filename
         if not path.exists():
             # Try the prompt_file as-is
             path = Path(self.config.prompt_file)
+        if not path.exists():
+            # Fallback: resolve relative to the pipeline package root
+            package_prompts = Path(__file__).parent.parent.parent / "prompts"
+            path = package_prompts / filename
         if not path.exists():
             self.logger.warning("Prompt file not found: %s, using empty", path)
             return ""
@@ -145,6 +124,7 @@ class Stage(ABC):
         )
 
         run_result = await runner.run(
+            binary_name=self.tool_handler.get_binary_name(),
             env=env,
             cli_args=cli_args,
             timeout=self.config.timeout_seconds,
@@ -226,12 +206,94 @@ class ReviewStage(Stage):
         return "\n".join(parts)
 
 
+class TestStage(Stage):
+    """Runs the project test suite, reads failures, and fixes code until green.
+
+    The agent executes tests (pytest, npm test, etc.), reads output,
+    identifies failures, edits code to fix them, and re-runs. It loops
+    within a single Claude Code session until all tests pass or max_turns.
+
+    Output starts with PASS or FAIL to indicate whether tests passed.
+    """
+
+    async def build_prompt(self, state: PipelineState) -> str:
+        template = self.load_prompt()
+        parts = [template] if template else []
+        # Provide context about what was just coded
+        parts.append(
+            "\n\nThe code stage has just finished implementing changes. "
+            "Run the project's test suite to verify everything works correctly. "
+            "Read PLAN.md for context on what was implemented."
+        )
+        if state.review_feedback:
+            parts.append(
+                f"\n\nPrevious test/review feedback (iteration {state.review_iteration}):"
+                f"\n{state.review_feedback}"
+                f"\n\nFocus on fixing the issues described above."
+            )
+        return "\n".join(parts)
+
+
+class LintStage(Stage):
+    """Runs static analysis (linters, type checkers) and fixes issues.
+
+    The agent runs linting/type-checking tools (eslint, mypy, ruff, etc.),
+    reads the output, fixes violations, and re-runs until clean.
+
+    Output starts with PASS or FAIL to indicate whether lint passed.
+    """
+
+    async def build_prompt(self, state: PipelineState) -> str:
+        template = self.load_prompt()
+        parts = [template] if template else []
+        parts.append(
+            "\n\nThe code stage has just finished implementing changes. "
+            "Run static analysis tools to verify code quality. "
+            "Read PLAN.md for context on what was implemented."
+        )
+        if state.review_feedback:
+            parts.append(
+                f"\n\nPrevious lint/review feedback (iteration {state.review_iteration}):"
+                f"\n{state.review_feedback}"
+                f"\n\nFocus on fixing the issues described above."
+            )
+        return "\n".join(parts)
+
+
+class VerifyStage(Stage):
+    """Individual verification agent that reviews code independently.
+
+    Each verify agent runs in parallel with other verify agents.
+    Output must start with PASS or FAIL, followed by detailed feedback.
+    Used by the multi-agent verification system for consensus voting.
+    """
+
+    async def build_prompt(self, state: PipelineState) -> str:
+        template = self.load_prompt()
+        parts = [template] if template else []
+        parts.append(
+            "\n\nVerify the code changes in this workspace. "
+            "Read PLAN.md for the implementation plan, then run `git diff` "
+            "to see what changed. Review the code for correctness, completeness, "
+            "and quality. Run any available tests."
+        )
+        if state.review_feedback:
+            parts.append(
+                f"\n\nPrevious verification feedback (iteration {state.review_iteration}):"
+                f"\n{state.review_feedback}"
+            )
+        return "\n".join(parts)
+
+
 # Stage class registry
 STAGE_CLASSES: dict[str, type[Stage]] = {
     "plan": PlanStage,
     "explore": ExploreStage,
     "code": CodeStage,
     "review": ReviewStage,
+    "test": TestStage,
+    "lint": LintStage,
+    "verify": VerifyStage,
 }
 
 

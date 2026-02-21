@@ -12,6 +12,8 @@ from cloding.core.config import (
     PipelineConfig,
     ReviewConfig,
     StageConfig,
+    VerifyAgentConfig,
+    VerifyConfig,
     load_config,
 )
 from cloding.core.errors import ConfigError
@@ -214,3 +216,92 @@ def test_config_warns_on_missing_api_key(tmp_path: Path, monkeypatch):
         warnings.simplefilter("always")
         load_config(str(p))
     assert any("MY_FAKE_KEY" in str(warning.message) for warning in w)
+
+
+# --- Verify config tests ---
+
+VERIFY_YAML = """\
+name: "verify-test"
+models:
+  opus:
+    provider: openrouter
+    model_id: anthropic/claude-opus-4.6
+    api_key_env: OPENROUTER_API_KEY
+    cost_per_mtok_input: 15.0
+    cost_per_mtok_output: 75.0
+  qwen:
+    provider: openrouter
+    model_id: qwen/qwen3-coder-next
+    api_key_env: OPENROUTER_API_KEY
+    cost_per_mtok_input: 0.07
+    cost_per_mtok_output: 0.30
+
+stages:
+  - name: code
+    model: qwen
+    prompt_file: prompts/code.txt
+
+verify:
+  enabled: true
+  agents:
+    - model: opus
+      prompt_file: prompts/verify.txt
+    - model: qwen
+      prompt_file: prompts/custom_verify.txt
+  consensus_threshold: 0.75
+  max_iterations: 5
+"""
+
+
+def test_load_verify_config(tmp_path, monkeypatch):
+    """Verify config section is parsed correctly."""
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    p = tmp_path / "verify.yaml"
+    p.write_text(VERIFY_YAML, encoding="utf-8")
+    config = load_config(str(p))
+
+    assert config.verify.enabled is True
+    assert len(config.verify.agents) == 2
+    assert config.verify.agents[0].model == "opus"
+    assert config.verify.agents[0].prompt_file == "prompts/verify.txt"
+    assert config.verify.agents[1].model == "qwen"
+    assert config.verify.agents[1].prompt_file == "prompts/custom_verify.txt"
+    assert config.verify.consensus_threshold == 0.75
+    assert config.verify.max_iterations == 5
+
+
+def test_verify_config_defaults(tmp_path, monkeypatch):
+    """Missing verify section should use defaults."""
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    p = tmp_path / "no-verify.yaml"
+    p.write_text(
+        "models:\n  x:\n    model_id: foo\n    api_key_env: OPENROUTER_API_KEY\n"
+        "stages:\n  - name: code\n    model: x\n    prompt_file: p.txt\n",
+        encoding="utf-8",
+    )
+    config = load_config(str(p))
+    assert config.verify.enabled is False
+    assert config.verify.agents == []
+    assert config.verify.consensus_threshold == 0.67
+    assert config.verify.max_iterations == 3
+
+
+def test_verify_agent_config_defaults():
+    """VerifyAgentConfig should have sensible defaults."""
+    agent = VerifyAgentConfig(model="opus")
+    assert agent.prompt_file == "prompts/verify.txt"
+
+
+def test_verify_config_empty_agents(tmp_path, monkeypatch):
+    """Verify section with enabled=true but no agents is valid."""
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    p = tmp_path / "empty-agents.yaml"
+    p.write_text(
+        "models:\n  x:\n    model_id: foo\n    api_key_env: OPENROUTER_API_KEY\n"
+        "stages:\n  - name: code\n    model: x\n    prompt_file: p.txt\n"
+        "verify:\n  enabled: true\n",
+        encoding="utf-8",
+    )
+    config = load_config(str(p))
+    assert config.verify.enabled is True
+    assert config.verify.agents == []

@@ -18,6 +18,7 @@ class ModelConfig:
     provider: str  # "openrouter" or "anthropic"
     model_id: str  # e.g., "anthropic/claude-opus-4.6" or "qwen/qwen3-coder-next"
     api_key_env: str  # env var name: "OPENROUTER_API_KEY" or "ANTHROPIC_API_KEY"
+    tool: str = "claude-code"  # "claude-code", "gemini", "opencode", "codex"
     base_url: Optional[str] = None  # "https://openrouter.ai/api" for OpenRouter
     cost_per_mtok_input: float = 0.0
     cost_per_mtok_output: float = 0.0
@@ -31,6 +32,7 @@ class StageConfig:
     name: str  # "plan", "explore", "code", "review"
     model: str  # key into models dict
     prompt_file: str  # path to prompt template
+    tool: Optional[str] = None  # Override tool for this stage
     max_turns: int = 50
     max_budget_usd: float = 2.0
     timeout_seconds: int = 600
@@ -58,6 +60,24 @@ class ReviewConfig:
 
 
 @dataclass(frozen=True)
+class VerifyAgentConfig:
+    """Configuration for a single verification agent."""
+
+    model: str  # key into models dict
+    prompt_file: str = "prompts/verify.txt"
+
+
+@dataclass(frozen=True)
+class VerifyConfig:
+    """Configuration for multi-agent verification."""
+
+    enabled: bool = False
+    agents: list[VerifyAgentConfig] = field(default_factory=list)
+    consensus_threshold: float = 0.67  # fraction of agents that must agree
+    max_iterations: int = 3
+
+
+@dataclass(frozen=True)
 class DockerConfig:
     """Configuration for Docker containers."""
 
@@ -75,6 +95,7 @@ class PipelineConfig:
     stages: list[StageConfig] = field(default_factory=list)
     fanout: FanoutConfig = field(default_factory=FanoutConfig)
     review: ReviewConfig = field(default_factory=ReviewConfig)
+    verify: VerifyConfig = field(default_factory=VerifyConfig)
     docker: DockerConfig = field(default_factory=DockerConfig)
     workspace_path: str = ""
     log_level: str = "INFO"
@@ -108,6 +129,7 @@ def load_config(path: str) -> PipelineConfig:
             provider=m.get("provider", "openrouter"),
             model_id=m["model_id"],
             api_key_env=m.get("api_key_env", "OPENROUTER_API_KEY"),
+            tool=m.get("tool", "claude-code"),
             base_url=m.get("base_url"),
             cost_per_mtok_input=float(m.get("cost_per_mtok_input", 0.0)),
             cost_per_mtok_output=float(m.get("cost_per_mtok_output", 0.0)),
@@ -122,6 +144,7 @@ def load_config(path: str) -> PipelineConfig:
             name=s["name"],
             model=s["model"],
             prompt_file=s["prompt_file"],
+            tool=s.get("tool"),
             max_turns=int(s.get("max_turns", 50)),
             max_budget_usd=float(s.get("max_budget_usd", 2.0)),
             timeout_seconds=int(s.get("timeout_seconds", 600)),
@@ -134,12 +157,32 @@ def load_config(path: str) -> PipelineConfig:
     review_raw = raw.get("review", {})
     docker_raw = raw.get("docker", {})
 
+    # Parse verify config
+    verify_raw = raw.get("verify", {})
+    verify_config = VerifyConfig()
+    if verify_raw:
+        agents_raw = verify_raw.get("agents", [])
+        verify_agents = [
+            VerifyAgentConfig(
+                model=a["model"],
+                prompt_file=a.get("prompt_file", "prompts/verify.txt"),
+            )
+            for a in agents_raw
+        ]
+        verify_config = VerifyConfig(
+            enabled=verify_raw.get("enabled", False),
+            agents=verify_agents,
+            consensus_threshold=float(verify_raw.get("consensus_threshold", 0.67)),
+            max_iterations=int(verify_raw.get("max_iterations", 3)),
+        )
+
     config = PipelineConfig(
         name=raw.get("name", "default"),
         models=models,
         stages=stages,
         fanout=FanoutConfig(**fanout_raw) if fanout_raw else FanoutConfig(),
         review=ReviewConfig(**review_raw) if review_raw else ReviewConfig(),
+        verify=verify_config,
         docker=DockerConfig(**docker_raw) if docker_raw else DockerConfig(),
         workspace_path=raw.get("workspace_path", ""),
         log_level=raw.get("log_level", "INFO"),
