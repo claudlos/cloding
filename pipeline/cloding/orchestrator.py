@@ -5,6 +5,7 @@ from pathlib import Path
 
 from cloding.core.config import PipelineConfig, load_config
 from cloding.core.logger import get_logger, init_logging
+from cloding.core.progress import ProgressTracker
 from cloding.core.workspace import get_diff_summary, prepare_workspace
 from cloding.models.cost_tracker import CostTracker
 from cloding.pipeline.pipeline import Pipeline
@@ -67,6 +68,14 @@ async def run_pipeline(
         _print_dry_run(config)
         return PipelineResult(success=True, run_id="dry-run")
 
+    # Generate or reuse run_id
+    current_run_id = run_id or Pipeline._generate_run_id()
+
+    # Build progress tracker
+    progress_tracker = ProgressTracker(
+        request=request, config_name=config.name, run_id=current_run_id
+    )
+
     # Prepare workspace (git branch)
     branch = await prepare_workspace(
         workspace=config.workspace_path,
@@ -109,11 +118,14 @@ async def run_pipeline(
         prompts_dir=prompts_dir,
     )
 
-    result = await pipeline.run(
-        user_request=request,
-        context_files=context_files,
-        resume_state=resume_state,
-    )
+    # Run with progress tracker TUI
+    with progress_tracker:
+        result = await pipeline.run(
+            user_request=request,
+            context_files=context_files,
+            resume_state=resume_state,
+            progress_tracker=progress_tracker,
+        )
 
     # Get git diff stat for summary
     git_diff_stat = ""

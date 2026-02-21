@@ -5,6 +5,7 @@ This is equivalent to Node's child_process.execFile, not exec.
 """
 
 import asyncio
+import hashlib
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -89,6 +90,45 @@ async def get_diff_summary(workspace: str) -> str:
     """Get a summary of changes made on the current branch."""
     code, stdout, _ = await _run_git("diff", "--stat", cwd=workspace)
     return stdout
+
+
+def calculate_workspace_hash(workspace_path: str) -> str:
+    """
+    Calculate a hash of the current workspace files to detect changes.
+    Used for caching exploration results.
+    """
+    ws = Path(workspace_path)
+    hasher = hashlib.sha256()
+
+    # Files to ignore during hashing
+    ignore_patterns = {
+        ".git", ".venv", "venv", "__pycache__", "data", "node_modules",
+        ".claude", "PLAN.md", "CONTEXT.md", "RUN_SUMMARY.md"
+    }
+
+    # Collect and sort files for deterministic hashing
+    files = []
+    for path in ws.rglob("*"):
+        if path.is_file():
+            # Check if any part of the path is in ignore_patterns
+            if any(part in ignore_patterns for part in path.parts):
+                continue
+            files.append(path)
+
+    files.sort()
+
+    for f in files:
+        # Hash relative path and mtime/size for speed, or content for accuracy
+        # Here we hash relative path + size + mtime as a good heuristic
+        try:
+            stat = f.stat()
+            hasher.update(str(f.relative_to(ws)).encode())
+            hasher.update(str(stat.st_size).encode())
+            hasher.update(str(stat.st_mtime).encode())
+        except OSError:
+            continue
+
+    return hasher.hexdigest()
 
 
 async def prepare_workspace(
