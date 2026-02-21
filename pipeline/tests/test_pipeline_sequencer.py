@@ -28,11 +28,12 @@ class FakeRunner(BaseRunner):
         self.results = results or []
         self.call_count = 0
 
-    async def run(self, env, cli_args, timeout):
+    async def run(self, binary_name, env, cli_args, timeout):
         if self.call_count < len(self.results):
             result = self.results[self.call_count]
         else:
-            result = RunResult(exit_code=0, stdout="ok", stderr="")
+            # Return a default success result instead of reusing the last one
+            result = RunResult(exit_code=0, stdout="PASS\nDefault success", stderr="")
         self.call_count += 1
         return result
 

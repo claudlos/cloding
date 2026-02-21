@@ -113,7 +113,7 @@ class FakeParallelRunner(BaseRunner):
         self._results = results
         self._idx = 0
 
-    async def run(self, env, cli_args, timeout):
+    async def run(self, binary_name, env, cli_args, timeout):
         idx = self._idx
         self._idx += 1
         if idx < len(self._results):
@@ -124,7 +124,7 @@ class FakeParallelRunner(BaseRunner):
 class ErrorRunner(BaseRunner):
     """Runner that always raises an exception."""
 
-    async def run(self, env, cli_args, timeout):
+    async def run(self, binary_name, env, cli_args, timeout):
         raise RuntimeError("Boom")
 
 
@@ -244,7 +244,7 @@ class TestRunTasksParallel:
         concurrent_count = 0
 
         class TrackingRunner(BaseRunner):
-            async def run(self, env, cli_args, timeout):
+            async def run(self, binary_name, env, cli_args, timeout):
                 nonlocal concurrent_count, max_concurrent
                 concurrent_count += 1
                 max_concurrent = max(max_concurrent, concurrent_count)

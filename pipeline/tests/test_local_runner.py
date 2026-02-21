@@ -11,7 +11,7 @@ import pytest
 
 from cloding.core.errors import StageError
 from cloding.runners.base import BaseRunner
-from cloding.runners.local_runner import LocalRunner, _resolve_claude_binary
+from cloding.runners.local_runner import LocalRunner, _resolve_binary
 
 _MODULE = "cloding.runners.local_runner"
 
@@ -104,12 +104,12 @@ class TestResolveBinary:
     def test_not_found_raises(self):
         with patch("shutil.which", return_value=None):
             with pytest.raises(StageError, match="Claude Code CLI not found"):
-                _resolve_claude_binary()
+                _resolve_binary("claude")
 
     def test_non_windows_returns_path(self):
         with patch("shutil.which", return_value="/usr/local/bin/claude"):
             with patch("platform.system", return_value="Linux"):
-                exe, prefix = _resolve_claude_binary()
+                exe, prefix = _resolve_binary("claude")
                 assert exe == "/usr/local/bin/claude"
                 assert prefix == []
 
@@ -135,7 +135,7 @@ class TestResolveBinary:
                     return original_which(name)
 
                 with patch("shutil.which", side_effect=_patched_which):
-                    exe, prefix = _resolve_claude_binary()
+                    exe, prefix = _resolve_binary("claude")
                     assert exe == "/usr/bin/node"
                     assert str(cli_js) in prefix
 
@@ -157,7 +157,7 @@ class TestResolveBinary:
 
                 with patch("shutil.which", side_effect=_patched_which):
                     with patch.dict(os.environ, {"COMSPEC": "C:\\Windows\\cmd.exe"}):
-                        exe, prefix = _resolve_claude_binary()
+                        exe, prefix = _resolve_binary("claude")
                         # Should fall through to COMSPEC since node is not found
                         assert exe == "C:\\Windows\\cmd.exe"
                         assert "/c" in prefix
@@ -176,7 +176,7 @@ class TestResolveBinary:
 
                 with patch("shutil.which", side_effect=_patched_which):
                     with patch.dict(os.environ, {"COMSPEC": "C:\\Windows\\cmd.exe"}):
-                        exe, prefix = _resolve_claude_binary()
+                        exe, prefix = _resolve_binary("claude")
                         assert exe == "C:\\Windows\\cmd.exe"
                         assert "/c" in prefix
 
@@ -193,7 +193,7 @@ class TestResolveBinary:
 
                 with patch("shutil.which", side_effect=_patched_which):
                     with patch.dict(os.environ, {}, clear=True):
-                        exe, prefix = _resolve_claude_binary()
+                        exe, prefix = _resolve_binary("claude")
                         assert exe == "cmd.exe"
                         assert "/c" in prefix
 
@@ -211,7 +211,7 @@ class TestResolveBinary:
                     return None
 
                 with patch("shutil.which", side_effect=_patched_which):
-                    exe, prefix = _resolve_claude_binary()
+                    exe, prefix = _resolve_binary("claude")
                     assert exe == "C:\\Program Files\\claude.exe"
                     assert prefix == []
 
@@ -226,9 +226,10 @@ class TestLocalRunnerRun:
             return_value=(b'{"result":"ok","total_cost_usd":0.01}', b"")
         )
 
-        with patch(f"{_MODULE}._resolve_claude_binary", return_value=("/usr/bin/claude", [])):
+        with patch(f"{_MODULE}._resolve_binary", return_value=("/usr/bin/claude", [])):
             with patch(f"{_MODULE}._launch", return_value=mock_proc):
                 result = await runner.run(
+                    binary_name="claude",
                     env={"ANTHROPIC_MODEL": "qwen"},
                     cli_args=["-p", "test"],
                     timeout=60,
@@ -243,9 +244,9 @@ class TestLocalRunnerRun:
         mock_proc.kill = MagicMock()
         mock_proc.wait = AsyncMock()
 
-        with patch(f"{_MODULE}._resolve_claude_binary", return_value=("/usr/bin/claude", [])):
+        with patch(f"{_MODULE}._resolve_binary", return_value=("/usr/bin/claude", [])):
             with patch(f"{_MODULE}._launch", return_value=mock_proc):
-                result = await runner.run(env={}, cli_args=[], timeout=1)
+                result = await runner.run(binary_name="claude", env={}, cli_args=[], timeout=1)
         assert result.exit_code == -1
         assert "Timed out" in result.stderr
 
@@ -258,19 +259,19 @@ class TestLocalRunnerRun:
         mock_proc.kill = MagicMock()
         mock_proc.wait = AsyncMock()
 
-        with patch(f"{_MODULE}._resolve_claude_binary", return_value=("/usr/bin/claude", [])):
+        with patch(f"{_MODULE}._resolve_binary", return_value=("/usr/bin/claude", [])):
             with patch(f"{_MODULE}._launch", return_value=mock_proc):
-                result = await runner.run(env={}, cli_args=[], timeout=1)
+                result = await runner.run(binary_name="claude", env={}, cli_args=[], timeout=1)
         assert result.exit_code == -1
         assert "Timed out" in result.stderr
         mock_proc.kill.assert_not_called()
 
     async def test_os_error_raises_stage_error(self):
         runner = LocalRunner()
-        with patch(f"{_MODULE}._resolve_claude_binary", return_value=("/usr/bin/claude", [])):
+        with patch(f"{_MODULE}._resolve_binary", return_value=("/usr/bin/claude", [])):
             with patch(f"{_MODULE}._launch", side_effect=OSError("exec failed")):
                 with pytest.raises(StageError, match="Local runner failed"):
-                    await runner.run(env={}, cli_args=[], timeout=60)
+                    await runner.run(binary_name="claude", env={}, cli_args=[], timeout=60)
 
     async def test_os_error_kills_running_proc(self):
         """When OSError occurs after proc is launched, proc should be killed."""
@@ -284,10 +285,10 @@ class TestLocalRunnerRun:
         async def _fake_launch(*args, **kwargs):
             return mock_proc
 
-        with patch(f"{_MODULE}._resolve_claude_binary", return_value=("/usr/bin/claude", [])):
+        with patch(f"{_MODULE}._resolve_binary", return_value=("/usr/bin/claude", [])):
             with patch(f"{_MODULE}._launch", side_effect=_fake_launch):
                 with pytest.raises(StageError, match="Local runner failed"):
-                    await runner.run(env={}, cli_args=[], timeout=60)
+                    await runner.run(binary_name="claude", env={}, cli_args=[], timeout=60)
 
         mock_proc.kill.assert_called_once()
         mock_proc.wait.assert_awaited_once()
@@ -305,9 +306,9 @@ class TestLocalRunnerRun:
             captured_env.update(kwargs.get("env", {}))
             return mock_proc
 
-        with patch(f"{_MODULE}._resolve_claude_binary", return_value=("/usr/bin/claude", [])):
+        with patch(f"{_MODULE}._resolve_binary", return_value=("/usr/bin/claude", [])):
             with patch(f"{_MODULE}._launch", side_effect=_capture_launch):
                 with patch.dict(os.environ, {"CLAUDECODE": "1"}):
-                    await runner.run(env={}, cli_args=[], timeout=60)
+                    await runner.run(binary_name="claude", env={}, cli_args=[], timeout=60)
 
         assert "CLAUDECODE" not in captured_env

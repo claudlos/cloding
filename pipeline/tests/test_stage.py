@@ -443,7 +443,7 @@ class FakeStageRunner(BaseRunner):
     def __init__(self, result: RunResult):
         self._result = result
 
-    async def run(self, env, cli_args, timeout):
+    async def run(self, binary_name, env, cli_args, timeout):
         return self._result
 
 

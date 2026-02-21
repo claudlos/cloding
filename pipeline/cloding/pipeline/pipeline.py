@@ -11,6 +11,7 @@ from cloding.core.config import PipelineConfig, StageConfig
 from cloding.core.errors import CostLimitError, ReviewRejectedError, StageError
 from cloding.core.logger import get_logger
 from cloding.core.progress import ProgressTracker
+from cloding.core.tool_handler import get_tool_handler
 from cloding.core.workspace import calculate_workspace_hash
 from cloding.fanout.merge import merge_results
 from cloding.fanout.parallel_runner import run_tasks_parallel
@@ -112,6 +113,7 @@ class Pipeline:
                         )
                         stage_results.append(result)
                         state.add_stage_result(result)
+                        self.cost_tracker.record("explore", result, tool="cache")
                         self._update_state(state, "explore", result)
                         
                         if progress_tracker:
@@ -125,6 +127,12 @@ class Pipeline:
                     result = await self._run_fanout(
                         stage_config, model_config, state, progress_tracker
                     )
+                    # Fanout records per-task costs in _run_fanout; record the
+                    # merged result here so the summary includes a top-level row.
+                    tool_name = get_tool_handler(
+                        stage_config.tool or model_config.tool or "claude-code"
+                    ).get_binary_name()
+                    self.cost_tracker.record(stage_config.name, result, tool=tool_name)
                 else:
                     stage = create_stage(
                         config=stage_config,
@@ -142,10 +150,12 @@ class Pipeline:
                         state=state,
                         model_registry=self.model_registry,
                     )
+                    self.cost_tracker.record(
+                        stage_config.name, result, tool=stage.tool_handler.get_binary_name()
+                    )
 
                 stage_results.append(result)
                 state.add_stage_result(result)
-                self.cost_tracker.record(stage_config.name, result, tool=stage.tool_handler.get_binary_name())
 
                 if progress_tracker:
                     status = "completed" if result.success else "failed"
@@ -566,7 +576,7 @@ class Pipeline:
 
             # Run all verify agents in parallel
             agent_results = await self._run_verify_agents(state)
-            all_verify_results = agent_results
+            all_verify_results.extend(agent_results)
 
             # Check consensus
             passes = sum(1 for r in agent_results if r.passed)

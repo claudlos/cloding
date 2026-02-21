@@ -313,6 +313,8 @@ function resolveModel(modelArg, models) {
     name: modelArg,
     in: 0,
     out: 0,
+    provider: "openrouter",
+    api_key_env: "OPENROUTER_API_KEY",
     description: "Custom model",
   };
 }
@@ -894,22 +896,20 @@ function main() {
     return;
   }
 
-  // Validate API key (pipeline mode handles its own validation)
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    console.error(
-      "Error: OPENROUTER_API_KEY not set.\n\n" +
-        "Get your key at https://openrouter.ai/keys\n" +
-        "Then either:\n" +
-        "  1. Create a .env file:  OPENROUTER_API_KEY=sk-or-v1-...\n" +
-        "  2. Set it:  export OPENROUTER_API_KEY=sk-or-v1-...\n"
-    );
-    process.exit(1);
-  }
-
   // ── Simple mode: launch tool with OpenRouter ──
   const model = resolveModel(args.model, models);
   const tool = model.tool || "claude";
+
+  // Validate API key (pipeline mode handles its own validation)
+  const apiKeyEnv = model.api_key_env || "OPENROUTER_API_KEY";
+  const apiKey = process.env[apiKeyEnv];
+  if (!apiKey) {
+    console.error(
+      `Error: ${apiKeyEnv} not set.\n\n` +
+        `Please set it:  export ${apiKeyEnv}=...`
+    );
+    process.exit(1);
+  }
 
   // Build env for tool
   const runEnv = { ...process.env };
@@ -923,6 +923,10 @@ function main() {
     delete runEnv.CLAUDECODE;
   } else if (tool === "gemini") {
     runEnv.GEMINI_API_KEY = apiKey;
+  } else if (tool === "opencode") {
+    runEnv.OPENCODE_API_KEY = apiKey;
+  } else if (tool === "codex") {
+    runEnv.OPENAI_API_KEY = apiKey;
   }
 
   // Build tool args
@@ -963,12 +967,47 @@ function main() {
   // Launch tool
   // On Windows, npm globals are .cmd shims that need shell:true for resolution.
   const isWin = process.platform === "win32";
-  const child = spawn(tool, runArgs, {
-    stdio: "inherit",
+  let spawnTool = tool;
+  let spawnArgs = runArgs;
+  let spawnShell = isWin;
+
+  if (tool === "codex" && isWin) {
+    // Wrap with WSL
+    spawnTool = "wsl";
+    // Using --cd to current directory
+    spawnArgs = ["--cd", process.cwd(), "codex", ...runArgs];
+    spawnShell = false; // wsl is an .exe
+
+    // Pass environment variables to WSL using WSLENV
+    const wslenv = [];
+    if (apiKeyEnv) wslenv.push(`${apiKeyEnv}/u`);
+    // Add common ones just in case
+    wslenv.push("OPENAI_API_KEY/u");
+    wslenv.push("OPENROUTER_API_KEY/u");
+    
+    if (process.env.WSLENV) {
+      runEnv.WSLENV = `${process.env.WSLENV}:${wslenv.join(":")}`;
+    } else {
+      runEnv.WSLENV = wslenv.join(":");
+    }
+  }
+
+  const child = spawn(spawnTool, spawnArgs, {
+    stdio: ["inherit", "inherit", "pipe"], // Inherit stdin/out, pipe stderr to filter noise
     env: runEnv,
-    shell: isWin,
+    shell: spawnShell,
   });
   forwardSignals(child);
+
+  // Filter WSL relay noise
+  child.stderr.on("data", (data) => {
+    const msg = data.toString();
+    // Discard the known non-fatal WSL relay error
+    if (msg.includes("WSL (") && msg.includes("ERROR: CreateProcessParseCommon")) {
+      return;
+    }
+    process.stderr.write(data);
+  });
 
   child.on("exit", (code) => process.exit(code ?? 0));
   child.on("error", (err) => {

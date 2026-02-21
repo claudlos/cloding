@@ -74,8 +74,13 @@ class GeminiHandler(ToolHandler):
     def build_env(self, model_config: ModelConfig) -> Dict[str, str]:
         env = {}
         api_key = os.environ.get(model_config.api_key_env, "")
-        env["GEMINI_API_KEY"] = api_key
-        # Gemini CLI might use different env vars, adjusting based on common patterns
+        
+        if model_config.provider == "openrouter":
+            env["GEMINI_API_KEY"] = api_key
+        else:
+            # Direct Google API
+            env["GOOGLE_API_KEY"] = api_key
+            env["GEMINI_API_KEY"] = api_key  # Some versions use this
         return env
 
     def build_cli_args(self, stage_config: StageConfig, model_config: ModelConfig, prompt: str) -> List[str]:
@@ -121,13 +126,23 @@ class CodexHandler(ToolHandler):
     def build_env(self, model_config: ModelConfig) -> Dict[str, str]:
         env = {}
         api_key = os.environ.get(model_config.api_key_env, "")
-        env["OPENAI_API_KEY"] = api_key
+        
+        if model_config.provider == "openrouter":
+            # For Codex CLI via OpenRouter (if supported)
+            env["OPENAI_API_KEY"] = api_key
+        else:
+            # Direct OpenAI API
+            env["OPENAI_API_KEY"] = api_key
         return env
 
     def build_cli_args(self, stage_config: StageConfig, model_config: ModelConfig, prompt: str) -> List[str]:
-        # Based on search: codex "prompt" or codex exec
-        # Using simple prompt execution
-        args = [prompt]
+        # Based on: codex exec "prompt"
+        args = ["exec", prompt]
+        if model_config.model_id:
+            args.extend(["--model", model_config.model_id])
+        
+        # Add full-auto for non-interactive coding
+        args.append("--full-auto")
         return args
 
     def get_binary_name(self) -> str:

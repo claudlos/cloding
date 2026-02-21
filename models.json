@@ -41,5 +41,25 @@
     "in": 1.25,
     "out": 10.00,
     "description": "Google's flagship. Large context window. Uses Gemini CLI."
+  },
+  "gemini-3": {
+    "id": "gemini-3-pro",
+    "name": "Gemini 3 Pro",
+    "tool": "gemini",
+    "provider": "google",
+    "api_key_env": "GOOGLE_API_KEY",
+    "in": 0.0,
+    "out": 0.0,
+    "description": "Direct Gemini 3 Pro instance via Gemini CLI."
+  },
+  "codex-5": {
+    "id": "gpt-5.3-codex-high",
+    "name": "Codex 5.3 High",
+    "tool": "codex",
+    "provider": "openai",
+    "api_key_env": "OPENAI_API_KEY",
+    "in": 0.0,
+    "out": 0.0,
+    "description": "Direct Codex 5.3 High instance via Codex CLI."
   }
 }

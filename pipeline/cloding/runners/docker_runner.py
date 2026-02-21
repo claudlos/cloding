@@ -74,7 +74,7 @@ class DockerRunner(BaseRunner):
             "Running in Docker: %s (tool: %s, model: %s)",
             self.image,
             binary_name,
-            env.get("ANTHROPIC_MODEL", env.get("GEMINI_API_KEY", "?")),
+            env.get("ANTHROPIC_MODEL", env.get("GEMINI_MODEL", "unknown")),
         )
         if self.container_name:
             self.logger.info("Container: %s", self.container_name)
@@ -151,18 +151,11 @@ class DockerRunner(BaseRunner):
         if "CLAUDECODE" not in env:
             cmd.extend(["-e", "CLAUDECODE="])
 
-        cmd.append(self.image)
-        # Entrypoint is currently hardcoded to 'claude' in Dockerfile.
-        # We should use --entrypoint if the binary_name is different.
+        # Override entrypoint for non-claude tools (must come before image name)
         if binary_name != "claude":
-            # This is a bit tricky because 'claude' is the entrypoint in Dockerfile.
-            # We can override it.
-            # But wait, Dockerfile says ENTRYPOINT ["claude"].
-            # So if we run 'docker run image gemini args', it might try to run 'claude gemini args'.
-            # We should use --entrypoint.
-            # However, --entrypoint must come before the image name.
-            cmd.insert(cmd.index(self.image), "--entrypoint")
-            cmd.insert(cmd.index(self.image), binary_name)
+            cmd.extend(["--entrypoint", binary_name])
+
+        cmd.append(self.image)
 
         cmd.extend(cli_args)
         return cmd

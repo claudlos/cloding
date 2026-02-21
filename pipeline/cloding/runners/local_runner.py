@@ -17,6 +17,13 @@ _launch = asyncio.create_subprocess_exec
 
 def _resolve_binary(binary_name: str) -> tuple[str, list[str]]:
     """Resolve the actual binary, handling Windows .CMD wrappers for Claude."""
+    # Special case: codex on Windows should run via WSL
+    if binary_name == "codex" and platform.system() == "Windows":
+        wsl_path = shutil.which("wsl")
+        if not wsl_path:
+            raise StageError("Codex requires WSL on Windows, but 'wsl' was not found in PATH.")
+        return wsl_path, ["codex"]
+
     binary_path = shutil.which(binary_name)
     if not binary_path:
         # Special case for 'claude' if not found but 'claude.cmd' might be
@@ -76,6 +83,9 @@ class LocalRunner(BaseRunner):
         Returns:
             RunResult with parsed output
         """
+        is_windows = platform.system() == "Windows"
+        use_wsl = binary_name == "codex" and is_windows
+
         exe_path, prefix_args = _resolve_binary(binary_name)
 
         # Build subprocess environment
@@ -90,10 +100,32 @@ class LocalRunner(BaseRunner):
 
         full_args = prefix_args + cli_args
 
+        # Handle WSL specifics: path translation and env passing
+        if use_wsl:
+            # We use 'wsl --cd <windows_path> codex <args>'
+            # This is simpler than manual path translation.
+            wsl_args = ["--cd", str(Path(self.workspace_path).resolve()) if self.workspace_path else "."]
+            # prefix_args already contains ['codex'] from _resolve_binary
+            full_args = wsl_args + full_args
+            cwd = None  # Already handled by --cd in wsl
+
+            # Pass environment variables to WSL using WSLENV
+            # Pattern: VAR1/u:VAR2/u (u means translate from Win to Linux)
+            wsl_env_vars = []
+            for key in env:
+                # Add all tool-provided env vars to WSLENV
+                wsl_env_vars.append(f"{key}/u")
+
+            if wsl_env_vars:
+                existing_wslenv = run_env.get("WSLENV", "")
+                new_wslenv = ":".join(wsl_env_vars)
+                run_env["WSLENV"] = f"{existing_wslenv}:{new_wslenv}" if existing_wslenv else new_wslenv
+
         self.logger.info(
-            "Running: %s %s",
+            "Running: %s %s%s",
             Path(exe_path).name,
             " ".join(full_args[:4]) + "...",
+            " (via WSL)" if use_wsl else "",
         )
         self.logger.debug("Executable: %s", exe_path)
         self.logger.debug("Full args: %s", full_args)
@@ -115,6 +147,13 @@ class LocalRunner(BaseRunner):
 
             stdout = stdout_bytes.decode("utf-8", errors="replace")
             stderr = stderr_bytes.decode("utf-8", errors="replace")
+
+            # Filter out noisy WSL relay errors
+            if "WSL (" in stderr and "ERROR: CreateProcessParseCommon" in stderr:
+                stderr = "\n".join([
+                    line for line in stderr.splitlines()
+                    if not ("WSL (" in line and "ERROR: CreateProcessParseCommon" in line)
+                ])
 
             self.logger.debug("Exit code: %d", proc.returncode or 0)
             self.logger.debug("Raw stdout (%d chars): %s", len(stdout), stdout[:2000])
