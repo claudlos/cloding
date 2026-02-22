@@ -29,6 +29,14 @@ const DEFAULT_MODEL = "qwen";
 const DOCKER_IMAGE = "cloding:latest";
 const DOCKER_NETWORK = "cloding-net";
 
+// Platform-aware env-set hint: "export FOO=bar" on Unix, "$env:FOO = 'bar'" on Windows
+function envSetHint(varName, value) {
+  if (process.platform === "win32") {
+    return `$env:${varName} = "${value}"`;
+  }
+  return `export ${varName}=${value}`;
+}
+
 // Build-time version (set by Bun compile via define; undefined in npm mode)
 var CLODING_VERSION;
 
@@ -929,12 +937,12 @@ function dockerRun(dockerArgs, models, interactive) {
       console.error(
         "Error: OPENROUTER_API_KEY not set.\n\n" +
           "Get your key at https://openrouter.ai/keys\n" +
-          "Then: export OPENROUTER_API_KEY=sk-or-v1-...\n"
+          `Then: ${envSetHint("OPENROUTER_API_KEY", "sk-or-v1-...")}\n`
       );
     } else {
       console.error(
         `Error: ${apiKeyEnv} not set.\n\n` +
-          `Please set it: export ${apiKeyEnv}=...`
+          `Please set it: ${envSetHint(apiKeyEnv, "...")}`
       );
     }
     process.exit(1);
@@ -948,19 +956,19 @@ function dockerRun(dockerArgs, models, interactive) {
       const base = modelArg.replace(/-p$/, "");
       altLines.push(
         `  Use API key mode:     cloding docker run -m ${base}-a "..."`,
-        `    Requires: export ANTHROPIC_API_KEY=...`,
+        `    Requires: ${envSetHint("ANTHROPIC_API_KEY", "...")}`,
         `  Use OpenRouter:       cloding docker run -m ${base} "..."`,
-        `    Requires: export OPENROUTER_API_KEY=...`
+        `    Requires: ${envSetHint("OPENROUTER_API_KEY", "...")}`
       );
     } else if (tool === "codex") {
       altLines.push(
         `  Use API key mode:     cloding docker run -m codex-5-a "..."`,
-        `    Requires: export OPENAI_API_KEY=...`
+        `    Requires: ${envSetHint("OPENAI_API_KEY", "...")}`
       );
     } else if (tool === "gemini") {
       altLines.push(
         `  Use API key mode:     cloding docker run -m gemini-3-a "..."`,
-        `    Requires: export GOOGLE_API_KEY=...`
+        `    Requires: ${envSetHint("GOOGLE_API_KEY", "...")}`
       );
     }
     altLines.push(
@@ -1459,7 +1467,7 @@ function main() {
   if (!apiKey && !usingLinkedCliAuth && !isPlanProvider) {
     console.error(
       `Error: ${apiKeyEnv} not set.\n\n` +
-        `Please set it:  export ${apiKeyEnv}=...`
+        `Please set it:  ${envSetHint(apiKeyEnv, "...")}`
     );
     process.exit(1);
   }
