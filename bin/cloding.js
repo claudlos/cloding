@@ -238,12 +238,13 @@ DOCKER COMMANDS:
   cloding docker help                 Show Docker help
 
 MODELS (shortcuts):
-  qwen       Qwen 3 Coder        $0.07/$0.30 per Mtok  (default, ~71x cheaper)
-  haiku      Claude Haiku 4.5     $0.80/$4.00 per Mtok
+  qwen       Qwen 3 Coder        $0.12/$0.75 per Mtok  (default, ~42x cheaper)
+  haiku      Claude Haiku 4.5     $1.00/$5.00 per Mtok
   sonnet     Claude Sonnet 4      $3.00/$15.00 per Mtok
-  opus       Claude Opus 4.6      $15.00/$75.00 per Mtok
-  deepseek   DeepSeek Coder V3    $0.14/$0.28 per Mtok
+  opus       Claude Opus 4.6      $5.00/$25.00 per Mtok
+  deepseek   DeepSeek V3.2        $0.26/$0.38 per Mtok
   gemini     Gemini 2.5 Pro       $1.25/$10.00 per Mtok
+  copilot    GitHub Copilot       $0 (subscription)
 
   Or pass any OpenRouter model ID:
     cloding -m meta-llama/llama-4-scout
@@ -253,7 +254,7 @@ ENVIRONMENT:
   CLODING_DEFAULT_MODEL    Optional. Default model shortcut (default: qwen).
 
 EXAMPLES:
-  cloding                            # Start coding with Qwen ($0.07/Mtok)
+  cloding                            # Start coding with Qwen ($0.12/Mtok)
   cloding -m haiku                   # Quick task with Haiku
   cloding -m opus -p "Review arch"   # One-shot with Opus
   cloding docker build               # Build Docker image first
@@ -560,6 +561,7 @@ function dockerRun(dockerArgs, models, interactive) {
     `GEMINI_API_KEY=${apiKey}`,
     `OPENCODE_API_KEY=${apiKey}`,
     `OPENAI_API_KEY=${apiKey}`,
+    `GITHUB_TOKEN=${apiKey}`,
   ];
   const envFileContent = envVars.join("\n") + "\n";
   const envFilePath = path.join(os.tmpdir(), `cloding-env-${Date.now()}.tmp`);
@@ -586,14 +588,16 @@ function dockerRun(dockerArgs, models, interactive) {
   );
 
   if (tool !== "claude") {
-    cmd.push("--entrypoint", tool);
+    // Map tool name to binary name (copilot → github-copilot)
+    const entrypoint = tool === "copilot" ? "github-copilot" : tool;
+    cmd.push("--entrypoint", entrypoint);
   }
 
   cmd.push(DOCKER_IMAGE);
 
   // Add tool-specific args
   if (!interactive && prompt) {
-    if (tool === "claude" || tool === "gemini") {
+    if (tool === "claude" || tool === "gemini" || tool === "copilot") {
       cmd.push("-p", prompt);
     } else if (tool === "opencode") {
       cmd.push("run", prompt);
@@ -927,12 +931,14 @@ function main() {
     runEnv.OPENCODE_API_KEY = apiKey;
   } else if (tool === "codex") {
     runEnv.OPENAI_API_KEY = apiKey;
+  } else if (tool === "copilot") {
+    runEnv.GITHUB_TOKEN = apiKey;
   }
 
   // Build tool args
   const runArgs = [...args.claudeArgs];
   if (args.prompt) {
-    if (tool === "claude" || tool === "gemini") {
+    if (tool === "claude" || tool === "gemini" || tool === "copilot") {
       runArgs.push("-p", args.prompt);
     } else if (tool === "opencode") {
       runArgs.unshift("run");
@@ -967,7 +973,8 @@ function main() {
   // Launch tool
   // On Windows, npm globals are .cmd shims that need shell:true for resolution.
   const isWin = process.platform === "win32";
-  let spawnTool = tool;
+  // Map tool name to binary name (copilot → github-copilot)
+  let spawnTool = tool === "copilot" ? "github-copilot" : tool;
   let spawnArgs = runArgs;
   let spawnShell = isWin;
 

@@ -126,7 +126,7 @@ class CodexHandler(ToolHandler):
     def build_env(self, model_config: ModelConfig) -> Dict[str, str]:
         env = {}
         api_key = os.environ.get(model_config.api_key_env, "")
-        
+
         if model_config.provider == "openrouter":
             # For Codex CLI via OpenRouter (if supported)
             env["OPENAI_API_KEY"] = api_key
@@ -140,7 +140,7 @@ class CodexHandler(ToolHandler):
         args = ["exec", prompt]
         if model_config.model_id:
             args.extend(["--model", model_config.model_id])
-        
+
         # Add full-auto for non-interactive coding
         args.append("--full-auto")
         return args
@@ -149,11 +149,29 @@ class CodexHandler(ToolHandler):
         return "codex"
 
 
+class CopilotHandler(ToolHandler):
+    """Handler for GitHub Copilot CLI."""
+
+    def build_env(self, model_config: ModelConfig) -> Dict[str, str]:
+        env = {}
+        api_key = os.environ.get(model_config.api_key_env, "")
+        env["GITHUB_TOKEN"] = api_key
+        return env
+
+    def build_cli_args(self, stage_config: StageConfig, model_config: ModelConfig, prompt: str) -> List[str]:
+        # Copilot CLI uses -p for prompts (like Claude/Gemini)
+        return ["-p", prompt]
+
+    def get_binary_name(self) -> str:
+        return "github-copilot"
+
+
 TOOL_HANDLERS: Dict[str, ToolHandler] = {
     "claude-code": ClaudeCodeHandler(),
     "gemini": GeminiHandler(),
     "opencode": OpenCodeHandler(),
     "codex": CodexHandler(),
+    "copilot": CopilotHandler(),
 }
 
 

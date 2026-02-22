@@ -2,15 +2,15 @@
   "qwen": {
     "id": "qwen/qwen3-coder-next",
     "name": "Qwen 3 Coder",
-    "in": 0.07,
-    "out": 0.30,
+    "in": 0.12,
+    "out": 0.75,
     "description": "Best value. Handles all Claude Code tools perfectly."
   },
   "haiku": {
     "id": "anthropic/claude-haiku-4.5",
     "name": "Claude Haiku 4.5",
-    "in": 0.80,
-    "out": 4.00,
+    "in": 1.00,
+    "out": 5.00,
     "description": "Fast and capable. Good for exploration tasks."
   },
   "sonnet": {
@@ -23,15 +23,15 @@
   "opus": {
     "id": "anthropic/claude-opus-4.6",
     "name": "Claude Opus 4.6",
-    "in": 15.00,
-    "out": 75.00,
+    "in": 5.00,
+    "out": 25.00,
     "description": "Most capable. Use for architecture and planning."
   },
   "deepseek": {
-    "id": "deepseek/deepseek-coder-v3",
-    "name": "DeepSeek Coder V3",
-    "in": 0.14,
-    "out": 0.28,
+    "id": "deepseek/deepseek-v3.2",
+    "name": "DeepSeek V3.2",
+    "in": 0.26,
+    "out": 0.38,
     "description": "Ultra-cheap alternative. Good for simple tasks."
   },
   "gemini": {
@@ -61,5 +61,15 @@
     "in": 0.0,
     "out": 0.0,
     "description": "Direct Codex 5.3 High instance via Codex CLI."
+  },
+  "copilot": {
+    "id": "copilot",
+    "name": "GitHub Copilot",
+    "tool": "copilot",
+    "provider": "github",
+    "api_key_env": "GITHUB_TOKEN",
+    "in": 0.0,
+    "out": 0.0,
+    "description": "GitHub Copilot agent. Requires Copilot subscription."
   }
 }

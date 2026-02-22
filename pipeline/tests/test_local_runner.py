@@ -106,6 +106,35 @@ class TestResolveBinary:
             with pytest.raises(StageError, match="Claude Code CLI not found"):
                 _resolve_binary("claude")
 
+    def test_copilot_not_found_raises(self):
+        with patch("shutil.which", return_value=None):
+            with pytest.raises(StageError, match="GitHub Copilot CLI not found"):
+                _resolve_binary("github-copilot")
+
+    def test_generic_binary_not_found_raises(self):
+        with patch("shutil.which", return_value=None):
+            with pytest.raises(StageError, match="Binary 'some-tool' not found"):
+                _resolve_binary("some-tool")
+
+    def test_copilot_linux_returns_path(self):
+        with patch("shutil.which", return_value="/usr/local/bin/github-copilot"):
+            with patch("platform.system", return_value="Linux"):
+                exe, prefix = _resolve_binary("github-copilot")
+                assert exe == "/usr/local/bin/github-copilot"
+                assert prefix == []
+
+    def test_copilot_windows_cmd_fallback(self, tmp_path):
+        """On Windows with .CMD wrapper for copilot, should fall back to cmd /c."""
+        cmd_path = str(tmp_path / "github-copilot.cmd")
+
+        with patch("shutil.which", return_value=cmd_path):
+            with patch("platform.system", return_value="Windows"):
+                with patch.dict(os.environ, {"COMSPEC": "C:\\Windows\\cmd.exe"}):
+                    exe, prefix = _resolve_binary("github-copilot")
+                    assert exe == "C:\\Windows\\cmd.exe"
+                    assert "/c" in prefix
+                    assert cmd_path in prefix
+
     def test_non_windows_returns_path(self):
         with patch("shutil.which", return_value="/usr/local/bin/claude"):
             with patch("platform.system", return_value="Linux"):

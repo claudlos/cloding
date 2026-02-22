@@ -1,10 +1,8 @@
 # cloding
 
-**Code with any model via OpenRouter.**
+**AI coding with any model, any CLI, one command.**
 
-Claude Code costs $5/$25 per Mtok. Qwen 3 Coder costs $0.07/$0.30. That's 71x cheaper on input, 83x cheaper on output.
-
-Cloding lets you run Claude Code — tools, file editing, terminal access, the whole thing — with any OpenRouter model. Same experience, fraction of the cost.
+Cloding is a universal wrapper that lets you run Claude Code, Gemini CLI, Codex CLI, OpenCode, or GitHub Copilot CLI with any model — through OpenRouter or direct API keys. Same agentic coding experience, your choice of model and tool.
 
 ```
 npm install -g cloding
@@ -14,92 +12,214 @@ npm install -g cloding
 
 ```bash
 export OPENROUTER_API_KEY=sk-or-v1-your-key-here
-cloding
+cloding                    # Start coding with Qwen 3 Coder ($0.12/Mtok)
 ```
 
-You're now running Claude Code with Qwen 3 Coder at **$0.07/Mtok input** instead of $5/Mtok.
+That's it. You're running Claude Code with Qwen at 42x cheaper input cost than Claude Opus.
 
-## Usage
+## How It Works
 
-```bash
-cloding                              # Interactive session with Qwen (default)
-cloding -m haiku                     # Use Claude Haiku 4.5
-cloding -m sonnet                    # Use Claude Sonnet 4
-cloding -m opus                      # Use Claude Opus 4.6
-cloding -m deepseek                  # Use DeepSeek Coder V3
-cloding -m gemini                    # Use Gemini 2.5 Pro (via Gemini CLI)
-cloding -p "add dark mode"           # Non-interactive, single prompt
-cloding --list-models                # Show all models with pricing
-cloding -m meta-llama/llama-4-scout  # Any OpenRouter model ID works
+Cloding sets the right environment variables and spawns the right CLI. Each model in `models.json` has a `tool` field that determines which CLI gets launched:
+
+```
+cloding -m qwen       →  spawns Claude Code   (via OpenRouter)
+cloding -m gemini     →  spawns Gemini CLI    (via OpenRouter)
+cloding -m gemini-3   →  spawns Gemini CLI    (via Google API directly)
+cloding -m codex-5    →  spawns Codex CLI     (via OpenAI API directly)
+cloding -m copilot    →  spawns Copilot CLI   (via GitHub, subscription)
 ```
 
-All Claude Code flags pass through:
+No config files to edit. No environment variables to juggle. Just pick a model and go.
+
+## All Commands
+
+### Simple Mode
+
+Run any model interactively or with a single prompt.
+
 ```bash
+# Basic usage
+cloding                                  # Interactive session (default: Qwen)
+cloding -m haiku                         # Use Claude Haiku 4.5
+cloding -m sonnet                        # Use Claude Sonnet 4
+cloding -m opus                          # Use Claude Opus 4.6
+cloding -m deepseek                      # Use DeepSeek V3.2
+cloding -p "fix the bug"                 # Non-interactive single prompt
+cloding -m opus -p "review architecture" # One-shot with specific model
+
+# Multi-tool models
+cloding -m gemini                        # Gemini 2.5 Pro via Gemini CLI
+cloding -m gemini-3                      # Gemini 3 Pro via direct Google API
+cloding -m codex-5                       # Codex 5.3 via Codex CLI
+cloding -m copilot                       # GitHub Copilot via Copilot CLI
+
+# Any OpenRouter model ID
+cloding -m meta-llama/llama-4-scout      # Use any model on OpenRouter
+cloding -m mistralai/mistral-large       # Full model ID as shortcut
+
+# Utility
+cloding --list-models                    # Show all models with pricing
+cloding -v                               # Show version
+cloding -h                               # Show help
+
+# Claude Code passthrough (all flags work)
 cloding --allowedTools Read,Write,Bash
+cloding --output-format json
 ```
 
-## Models & Cost
+### Docker Mode
 
-| Shortcut | Model | Input $/Mtok | Output $/Mtok | vs Claude Code |
-|----------|-------|-------------|---------------|----------------|
-| `qwen` | Qwen 3 Coder | $0.07 | $0.30 | **71x cheaper** |
-| `deepseek` | DeepSeek Coder V3 | $0.14 | $0.28 | **36x cheaper** |
-| `haiku` | Claude Haiku 4.5 | $0.80 | $4.00 | 6x cheaper |
-| `gemini` | Gemini 2.5 Pro | $1.25 | $10.00 | 4x cheaper |
-| `sonnet` | Claude Sonnet 4 | $3.00 | $15.00 | 1.7x cheaper |
-| `opus` | Claude Opus 4.6 | $15.00 | $75.00 | 3x more expensive |
-
-> A 30-minute coding session that costs ~$5 with Claude Code costs ~$0.07 with Qwen. Same tools, same workflow.
-
-## Multi-Tool Support
-
-Cloding isn't locked to Claude Code. Models can declare a `tool` field in `models.json` that routes them to the right CLI:
-
-| Tool | CLI | Models |
-|------|-----|--------|
-| `claude` (default) | Claude Code | qwen, haiku, sonnet, opus, deepseek |
-| `gemini` | Gemini CLI | gemini, gemini-3 |
-| `codex` | Codex CLI | codex-5 |
-| `opencode` | OpenCode CLI | (any OpenCode-compatible model) |
+Sandboxed execution. The model can only touch the workspace you mount — no access to your filesystem, SSH keys, or environment.
 
 ```bash
-cloding -m gemini                 # Launches Gemini CLI instead of Claude Code
-cloding -m gemini-3               # Gemini 3 Pro via direct Google API
-cloding -m codex-5                # Codex 5.3 via Codex CLI
+# Setup
+cloding docker build                             # Build the Docker image (one-time)
+
+# Run prompts in containers
+cloding docker run "fix the bug"                 # Run a prompt
+cloding docker run -m haiku "add tests"          # Specific model
+cloding docker run -m gemini "build the API"     # Gemini CLI in Docker
+cloding docker run -m codex-5 "refactor utils"   # Codex CLI in Docker
+cloding docker run -m copilot "fix linting"      # Copilot CLI in Docker
+cloding docker run -w ./myproject "fix tests"    # Mount a workspace
+cloding docker run --memory 4g --cpus 2 "prompt" # Resource limits
+cloding docker run --name my-task "prompt"       # Custom container name
+cloding docker run --no-rm "prompt"              # Keep container after exit
+
+# Interactive sessions
+cloding docker shell                             # Interactive Claude session
+cloding docker shell -m sonnet                   # Interactive with specific model
+cloding docker shell -w /path/to/project         # Mount a workspace
+
+# Management
+cloding docker status                            # Show running containers
+cloding docker stop                              # Stop all cloding containers
+cloding docker clean                             # Remove stopped containers
+cloding docker help                              # Show Docker help
 ```
 
-Each tool handler builds the right env vars and CLI args automatically. In the pipeline, models can specify `tool: gemini` in the YAML config and stages will dispatch to the correct binary.
+Docker run/shell options:
 
-## Docker Mode
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-m, --model` | qwen | Model shortcut or OpenRouter ID |
+| `-p, --prompt` | — | Prompt text (alternative to positional arg) |
+| `-w, --workspace` | cwd | Mount a local directory as `/workspace` |
+| `--memory` | 2g | Container memory limit |
+| `--cpus` | 1.0 | Container CPU limit |
+| `--name` | auto | Custom container name |
+| `--no-rm` | false | Don't auto-remove container on exit |
 
-When you run Claude Code, it has full access to your machine — your files, your terminal, your `.env`, your SSH keys, everything. Docker mode puts it in a box. The model can only touch the workspace you mount and nothing else.
+### Pipeline Mode
+
+Multi-stage coding pipeline with parallel fan-out, quality gates, and multi-agent verification. Assign different models and tools to different stages.
 
 ```bash
-cloding docker build                    # Build image (one-time)
-cloding docker shell                    # Interactive session
-cloding docker run "fix the bug"        # Run a prompt
-cloding docker run -m haiku "prompt"    # Specific model
-cloding docker run -m gemini "prompt"   # Gemini CLI in Docker
-cloding docker run -w ./myproject       # Mount workspace
-cloding docker run --memory 4g --cpus 2 # Resource limits
-cloding docker status                   # Show running containers
-cloding docker stop                     # Stop all containers
-cloding docker clean                    # Remove stopped containers
+# Setup (one-time)
+cd pipeline && pip install -e .                                     # Requires Python 3.11+
+
+# Run pipelines
+cloding pipeline "Add auth" --workspace ./myapp --no-docker         # Standard pipeline
+cloding pipeline -c configs/qwen-fanout.yaml "Refactor DB layer"    # Parallel fan-out
+cloding pipeline -c configs/gemini-test.yaml "Build the API"        # Gemini CLI stages
+cloding pipeline -c configs/codex-test.yaml "Add error handling"    # Codex CLI stages
+cloding pipeline -c configs/copilot-test.yaml "Write docs"         # Copilot CLI stages
+cloding pipeline -c configs/opus-plan-qwen-code.yaml "Add caching"  # Mix models
+cloding pipeline --dry-run -c configs/default.yaml "anything"       # Preview config
+cloding pipeline --resume code --run-id <id> "original request"     # Resume from stage
+cloding pipeline -f request.txt -w ./myapp                         # Read request from file
+cloding pipeline -v "Debug this" --no-git                          # Verbose, skip git
 ```
 
-Your workspace gets mounted read-write at `/workspace` inside the container. That's the only thing the model can touch.
+Pipeline CLI flags:
 
-## Pipeline Mode
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-c, --config` | `configs/default.yaml` | Path to YAML pipeline config |
+| `-w, --workspace` | cwd | Target workspace directory |
+| `-f, --file` | — | Read request from file instead of argument |
+| `--context-files` | — | Comma-separated key files to examine |
+| `--no-docker` | false | Run locally instead of in Docker containers |
+| `--no-git` | false | Skip git branch creation and stash |
+| `--dry-run` | false | Print pipeline config and exit |
+| `--resume STAGE` | — | Resume from a specific stage (e.g., `code`) |
+| `--run-id ID` | — | Run ID to resume from (used with `--resume`) |
+| `--prompts-dir` | `prompts` | Directory containing prompt templates |
+| `-v, --verbose` | false | Enable debug logging |
 
-Multi-stage coding pipeline with parallel fan-out, quality gates, and multi-agent verification. Assign different models and different tools to different stages.
+## Models & Pricing
 
-```bash
-cd pipeline && pip install -e .    # Requires Python 3.11+
-cloding pipeline "Add auth" --workspace ./myapp --no-docker
-cloding pipeline -c configs/qwen-fanout.yaml "Refactor the DB layer"
-cloding pipeline -c configs/gemini-test.yaml "Build the API"
-cloding pipeline --dry-run -c configs/default.yaml "anything"
+### OpenRouter Models
+
+These models route through OpenRouter. You only need `OPENROUTER_API_KEY`.
+
+| Shortcut | Model | Input $/Mtok | Output $/Mtok | Tool | vs Opus |
+|----------|-------|-------------|---------------|------|---------|
+| `qwen` | Qwen 3 Coder | $0.12 | $0.75 | Claude Code | **42x cheaper** |
+| `deepseek` | DeepSeek V3.2 | $0.26 | $0.38 | Claude Code | **66x cheaper** |
+| `haiku` | Claude Haiku 4.5 | $1.00 | $5.00 | Claude Code | 5x cheaper |
+| `gemini` | Gemini 2.5 Pro | $1.25 | $10.00 | Gemini CLI | 2.5x cheaper |
+| `sonnet` | Claude Sonnet 4 | $3.00 | $15.00 | Claude Code | 1.7x cheaper |
+| `opus` | Claude Opus 4.6 | $5.00 | $25.00 | Claude Code | baseline |
+
+### Direct API Models
+
+These models bypass OpenRouter and call the provider's API directly. Set the provider's API key instead.
+
+| Shortcut | Model | Tool | API Key |
+|----------|-------|------|---------|
+| `gemini-3` | Gemini 3 Pro | Gemini CLI | `GOOGLE_API_KEY` |
+| `codex-5` | Codex 5.3 High | Codex CLI | `OPENAI_API_KEY` |
+| `copilot` | GitHub Copilot | Copilot CLI | `GITHUB_TOKEN` |
+
+Any OpenRouter model ID also works as a shortcut: `cloding -m meta-llama/llama-4-scout`
+
+## Multi-Tool Architecture
+
+Cloding dispatches to five different coding CLIs based on the model's `tool` field in `models.json`:
+
+| Tool | CLI | How It's Used |
+|------|-----|---------------|
+| `claude` (default) | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Models without a `tool` field use Claude Code via OpenRouter |
+| `gemini` | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | Models with `"tool": "gemini"` launch the Gemini CLI |
+| `codex` | [Codex CLI](https://github.com/openai/codex) | Models with `"tool": "codex"` launch the Codex CLI |
+| `copilot` | [GitHub Copilot CLI](https://github.com/github/copilot-cli) | Models with `"tool": "copilot"` launch the Copilot CLI |
+| `opencode` | [OpenCode](https://github.com/opencode-ai/opencode) | Models with `"tool": "opencode"` launch OpenCode |
+
+Each tool handler automatically:
+- Sets the right environment variables (`ANTHROPIC_*`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `GITHUB_TOKEN`, etc.)
+- Builds the correct CLI arguments (`-p` for prompts, `--model` for model selection)
+- Overrides the Docker entrypoint for non-Claude tools
+- Handles Windows/WSL routing for Codex
+
+### Adding Custom Models
+
+Edit `models.json` to add your own shortcuts:
+
+```json
+{
+  "my-model": {
+    "id": "your-provider/model-id",
+    "name": "My Custom Model",
+    "tool": "gemini",
+    "provider": "google",
+    "api_key_env": "GOOGLE_API_KEY",
+    "in": 0.0,
+    "out": 0.0,
+    "description": "My custom model via Gemini CLI."
+  }
+}
 ```
+
+Fields:
+- `id` — OpenRouter model ID or provider model ID (required)
+- `name` — Display name (required)
+- `in` / `out` — Cost per million tokens, input/output (required)
+- `tool` — Which CLI to use: `claude`, `gemini`, `codex`, `copilot`, `opencode` (default: `claude`)
+- `provider` — `openrouter` or direct provider name (default: `openrouter`)
+- `api_key_env` — Environment variable for the API key (default: `OPENROUTER_API_KEY`)
+
+## Pipeline Features
 
 ### Default Pipeline
 
@@ -107,19 +227,27 @@ cloding pipeline --dry-run -c configs/default.yaml "anything"
 Plan (Opus) → Explore (Haiku) → Code (Qwen) → Test (Qwen) → Lint (Qwen) → Review (Opus)
 ```
 
-The default config (`configs/default.yaml`) runs a 6-stage pipeline with cost budgets per stage, allowed tool lists, and parallel fan-out enabled.
+Each stage uses the best model for the job. Expensive models plan and review. Cheap models do the heavy lifting.
 
-### New Stages
+### Parallel Fan-Out
 
-**Test stage** — Runs the project's test suite, fixes failures, re-runs until green or out of turns. Output starts with PASS or FAIL.
+The planner splits large tasks into independent subtasks. Each subtask runs in its own container with its own agent, all in parallel:
 
-**Lint stage** — Runs linters and type checkers (ruff, eslint, mypy, etc.), fixes violations, re-runs until clean. Output starts with PASS or FAIL.
+```bash
+cloding pipeline -c configs/qwen-fanout.yaml "Refactor the entire API layer"
+```
 
-Both are quality gates: the pipeline logs a warning if they don't pass but continues execution (the agent already attempted fixes within its session).
+### Quality Gates
+
+**Test stage** — Runs the project's test suite, fixes failures, re-runs until green or out of turns.
+
+**Lint stage** — Runs linters and type checkers (ruff, eslint, mypy, etc.), fixes violations, re-runs until clean.
+
+Both stages output PASS or FAIL. The pipeline logs a warning if they don't pass but continues.
 
 ### Multi-Agent Verification
 
-After all stages complete, independent verification agents review the code changes in parallel. Configure in your pipeline YAML:
+After all stages complete, independent agents review the changes in parallel. Configure in your pipeline YAML:
 
 ```yaml
 verify:
@@ -135,78 +263,72 @@ verify:
   max_iterations: 3
 ```
 
-Each agent independently reads the plan, reviews the diff, runs tests, and votes PASS or FAIL. The pipeline passes verification when the consensus threshold is met (e.g., 2 of 3 agents agree).
+Each agent independently reads the plan, reviews the diff, runs tests, and votes PASS or FAIL. The pipeline passes when the consensus threshold is met (e.g., 2 of 3 agents agree).
 
 ### Exploration Caching
 
-The explore stage caches its output (CONTEXT.md) keyed by workspace file hash. Subsequent runs against the same codebase skip exploration entirely and load the cached context, saving time and cost on repeated runs.
+The explore stage caches its output (CONTEXT.md) keyed by workspace file hash. Subsequent runs against the same codebase skip exploration entirely, saving time and cost.
 
 ### TUI Progress Tracker
 
-Pipeline runs display a live Rich terminal UI showing:
-- Per-stage status (pending, running, completed, failed)
-- Elapsed time and running cost
-- Mini progress bars per stage
-- Request summary and run ID
+Pipeline runs display a live terminal UI showing per-stage status, elapsed time, running cost, mini progress bars, and run ID.
 
 ### Pipeline Configs
 
 | Config | Pipeline | Notes |
 |--------|----------|-------|
-| `default.yaml` | Plan → Explore → Code → Test → Lint → Review | Full pipeline with verify, fan-out |
+| `default.yaml` | Plan → Explore → Code → Test → Lint → Review | Full pipeline, fan-out, verification |
 | `quick.yaml` | Plan → Code | Fast 2-stage with Qwen |
 | `qwen-fanout.yaml` | Plan → Code (parallel) | Splits tasks, N workers |
 | `opus-plan-qwen-code.yaml` | Plan (Opus) → Code (Qwen) | Best quality/cost ratio |
 | `human-loop.yaml` | Plan → Code → Review | Pauses for human approval |
-| `gemini-test.yaml` | Plan → Code | Gemini CLI integration test |
+| `gemini-test.yaml` | Plan → Code | Gemini CLI integration |
+| `codex-test.yaml` | Plan → Code | Codex CLI integration |
+| `copilot-test.yaml` | Plan → Code | GitHub Copilot CLI integration |
+| `qwen-tools-test.yaml` | Plan → Code | Tests Qwen's tool use |
 | `test-cheap.yaml` | Minimal | Fast testing |
 | `test-fanout.yaml` | Fan-out | Parallel execution testing |
 
-### Pipeline CLI Flags
-
-```
--c, --config         Path to YAML config (default: configs/default.yaml)
--w, --workspace      Target workspace (default: cwd)
--f, --file           Read request from file
---context-files      Comma-separated key files to examine
---no-docker          Run locally instead of Docker
---no-git             Skip git branch creation
---dry-run            Print config and exit
---resume STAGE       Resume from a stage (e.g., 'code')
---run-id ID          Run ID to resume from
---prompts-dir        Prompt templates directory
--v, --verbose        Debug logging
-```
-
 ## Configuration
 
-```bash
-export OPENROUTER_API_KEY=sk-or-v1-your-key-here   # Required
-export CLODING_DEFAULT_MODEL=qwen                    # Optional (default: qwen)
-```
+### Environment Variables
 
-For Gemini direct (not through OpenRouter):
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENROUTER_API_KEY` | Yes | Your OpenRouter API key. Get one at [openrouter.ai/keys](https://openrouter.ai/keys) |
+| `CLODING_DEFAULT_MODEL` | No | Default model shortcut (default: `qwen`) |
+| `GOOGLE_API_KEY` | For `gemini-3` | Direct Google API key for Gemini models |
+| `OPENAI_API_KEY` | For `codex-5` | Direct OpenAI API key for Codex models |
+| `GITHUB_TOKEN` | For `copilot` | GitHub PAT with Copilot access |
+
 ```bash
+# Required for OpenRouter models
+export OPENROUTER_API_KEY=sk-or-v1-your-key-here
+
+# Optional: change default model
+export CLODING_DEFAULT_MODEL=haiku
+
+# Optional: direct provider keys (bypass OpenRouter)
 export GOOGLE_API_KEY=your-google-api-key
-```
-
-For Codex direct:
-```bash
 export OPENAI_API_KEY=your-openai-api-key
+export GITHUB_TOKEN=your-github-pat
 ```
-
-Add custom model shortcuts by editing `models.json`. Set the `tool` field to route to a different CLI.
 
 ## Prerequisites
 
-- **Node.js 18+**
-- **Claude Code**: `npm install -g @anthropic-ai/claude-code`
-- **OpenRouter API key**: [openrouter.ai/keys](https://openrouter.ai/keys)
-- **Docker** *(for Docker mode)*: [Docker Desktop](https://docs.docker.com/get-started/get-docker/)
-- **Python 3.11+** *(for pipeline mode)*
-- `npm install -g @anthropic-ai/claude-code` is not needed if you only use gemini
-- **Gemini CLI** *(for gemini models)*: (https://geminicli.com/docs/)
-- **Codex CLI** *(for codex models)*: (https://developers.openai.com/codex/cli)
+- **Node.js 18+** — required for all modes
+- **OpenRouter API key** — [openrouter.ai/keys](https://openrouter.ai/keys)
+
+Per-tool requirements (only install what you need):
+
+| Tool | Install | Needed For |
+|------|---------|------------|
+| Claude Code | `npm install -g @anthropic-ai/claude-code` | `qwen`, `haiku`, `sonnet`, `opus`, `deepseek`, and any custom OpenRouter model |
+| Gemini CLI | [github.com/google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) | `gemini`, `gemini-3` |
+| Codex CLI | [github.com/openai/codex](https://github.com/openai/codex) | `codex-5` |
+| Copilot CLI | `npm install -g @github/copilot-cli` | `copilot` |
+| Docker | [Docker Desktop](https://docs.docker.com/get-started/get-docker/) | Docker mode |
+| Python 3.11+ | [python.org](https://python.org) | Pipeline mode |
 
 ## Testing
 

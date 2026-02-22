@@ -32,25 +32,31 @@ def _resolve_binary(binary_name: str) -> tuple[str, list[str]]:
                 "Claude Code CLI not found in PATH. "
                 "Install with: npm i -g @anthropic-ai/claude-code"
             )
+        if binary_name == "github-copilot":
+            raise StageError(
+                "GitHub Copilot CLI not found in PATH. "
+                "Install with: npm i -g @github/copilot-cli"
+            )
         raise StageError(f"Binary '{binary_name}' not found in PATH.")
 
-    # On Windows, .CMD wrappers for 'claude' need special handling
-    if binary_name == "claude" and platform.system() == "Windows" and binary_path.lower().endswith(".cmd"):
-        # The .CMD wrapper calls: node "<dir>/node_modules/@anthropic-ai/claude-code/cli.js" %*
-        cmd_dir = Path(binary_path).parent
-        cli_js = cmd_dir / "node_modules" / "@anthropic-ai" / "claude-code" / "cli.js"
+    # On Windows, .CMD wrappers for npm globals need special handling
+    if binary_name in ("claude", "github-copilot") and platform.system() == "Windows" and binary_path.lower().endswith(".cmd"):
+        if binary_name == "claude":
+            # The .CMD wrapper calls: node "<dir>/node_modules/@anthropic-ai/claude-code/cli.js" %*
+            cmd_dir = Path(binary_path).parent
+            cli_js = cmd_dir / "node_modules" / "@anthropic-ai" / "claude-code" / "cli.js"
 
-        if cli_js.exists():
-            node_path = shutil.which("node")
-            if node_path:
-                return node_path, [str(cli_js)]
+            if cli_js.exists():
+                node_path = shutil.which("node")
+                if node_path:
+                    return node_path, [str(cli_js)]
 
-        # Fallback: try to find claude.exe (if installed differently)
-        claude_exe = shutil.which("claude.exe")
-        if claude_exe and not claude_exe.lower().endswith(".cmd"):
-            return claude_exe, []
+            # Fallback: try to find claude.exe (if installed differently)
+            claude_exe = shutil.which("claude.exe")
+            if claude_exe and not claude_exe.lower().endswith(".cmd"):
+                return claude_exe, []
 
-        # Last resort: use cmd /c to run the .CMD properly
+        # Generic fallback for all npm .CMD wrappers: use cmd /c
         return os.environ.get("COMSPEC", "cmd.exe"), ["/c", binary_path]
 
     return binary_path, []
