@@ -51,9 +51,10 @@ function forwardSignals(child) {
 // .env loader (no dependencies)
 // ──────────────────────────────────────────────
 function loadEnvFile() {
-  // Search for .env in: cwd, then cloding package root
+  // Search for .env in: cwd, then user home, then cloding package root
   const candidates = [
     path.join(process.cwd(), ".env"),
+    path.join(os.homedir(), ".env"),
     path.join(__dirname, "..", ".env"),
   ];
 
@@ -105,7 +106,7 @@ function loadModels() {
     process.exit(1);
   }
   for (const [shortcut, m] of Object.entries(models)) {
-    if (!m.id || typeof m.id !== "string") {
+    if (typeof m.id !== "string") {
       console.error(`Error: models.json: "${shortcut}" missing required "id" (string)`);
       process.exit(1);
     }
@@ -320,6 +321,30 @@ function resolveModel(modelArg, models) {
   };
 }
 
+function canUseCliLinkedAuth(tool) {
+  return tool === "gemini" || tool === "copilot";
+}
+
+function normalizeGeminiModelForLinkedAuth(modelId) {
+  // OpenRouter-style IDs like "google/gemini-2.5-pro" are not valid in
+  // account-linked Gemini CLI mode. Use the provider model name instead.
+  if (typeof modelId !== "string") return modelId;
+  const slash = modelId.indexOf("/");
+  if (slash > 0 && slash < modelId.length - 1) {
+    return modelId.slice(slash + 1);
+  }
+  return modelId;
+}
+
+function hasArg(args, flag) {
+  return Array.isArray(args) && args.includes(flag);
+}
+
+function getNodeMajorVersion() {
+  const major = Number.parseInt((process.versions.node || "0").split(".")[0], 10);
+  return Number.isNaN(major) ? 0 : major;
+}
+
 function dockerAvailable() {
   try {
     const result = spawnSync("docker", ["--version"], { stdio: "ignore" });
@@ -454,6 +479,7 @@ function dockerRun(dockerArgs, models, interactive) {
   let autoRemove = true;
   let prompt = null;
   const extraClaudeArgs = [];
+  const modelShortcuts = new Set(Object.keys(models).map((m) => m.toLowerCase()));
 
   let i = 0;
   while (i < dockerArgs.length) {
@@ -490,9 +516,18 @@ function dockerRun(dockerArgs, models, interactive) {
         autoRemove = false;
         break;
       default:
-        // First unrecognized non-flag arg is the prompt (for 'run' mode)
-        if (!interactive && !prompt && !arg.startsWith("-")) {
-          prompt = arg;
+        // In docker run mode:
+        // - first bare token can be an implicit model shortcut (e.g. "codex-5")
+        // - next bare token is treated as prompt
+        if (!interactive && !arg.startsWith("-")) {
+          const isKnownModel = modelShortcuts.has(arg.toLowerCase());
+          if (!modelArg && !prompt && isKnownModel) {
+            modelArg = arg;
+          } else if (!prompt) {
+            prompt = arg;
+          } else {
+            extraClaudeArgs.push(arg);
+          }
         } else {
           extraClaudeArgs.push(arg);
         }
@@ -503,9 +538,15 @@ function dockerRun(dockerArgs, models, interactive) {
 
   // Validate
   if (!interactive && !prompt) {
+    const modelHint = modelArg
+      ? "\nDid you mean:\n" +
+        `  cloding docker run -m ${modelArg} "your prompt here"\n` +
+        `  cloding docker shell -m ${modelArg}\n`
+      : "";
     console.error(
       'Error: No prompt provided.\n\n' +
-        '  Usage: cloding docker run "your prompt here"\n'
+        '  Usage: cloding docker run "your prompt here"\n' +
+        modelHint
     );
     process.exit(1);
   }
@@ -518,19 +559,28 @@ function dockerRun(dockerArgs, models, interactive) {
     process.exit(1);
   }
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    console.error(
-      "Error: OPENROUTER_API_KEY not set.\n\n" +
-        "Get your key at https://openrouter.ai/keys\n" +
-        "Then: export OPENROUTER_API_KEY=sk-or-v1-...\n"
-    );
-    process.exit(1);
-  }
-
   // Resolve model
   const model = resolveModel(modelArg, models);
   const tool = model.tool || "claude";
+  const isPlanProvider = model.provider === "plan";
+  const apiKeyEnv = model.api_key_env || "OPENROUTER_API_KEY";
+  const apiKey = isPlanProvider ? "" : process.env[apiKeyEnv];
+  const usingLinkedCliAuth = !apiKey && canUseCliLinkedAuth(tool);
+  if (!apiKey && !usingLinkedCliAuth && !isPlanProvider) {
+    if (apiKeyEnv === "OPENROUTER_API_KEY") {
+      console.error(
+        "Error: OPENROUTER_API_KEY not set.\n\n" +
+          "Get your key at https://openrouter.ai/keys\n" +
+          "Then: export OPENROUTER_API_KEY=sk-or-v1-...\n"
+      );
+    } else {
+      console.error(
+        `Error: ${apiKeyEnv} not set.\n\n` +
+          `Please set it: export ${apiKeyEnv}=...`
+      );
+    }
+    process.exit(1);
+  }
 
   // Validate workspace exists and is a directory
   if (!fs.existsSync(workspace)) {
@@ -551,18 +601,47 @@ function dockerRun(dockerArgs, models, interactive) {
     containerName = `cloding-${interactive ? "shell" : "run"}-${suffix}`;
   }
 
-  // Write env vars to a temp file so the API key doesn't leak in `ps aux`
-  const envVars = [
-    `ANTHROPIC_BASE_URL=${OPENROUTER_BASE_URL}`,
-    `ANTHROPIC_AUTH_TOKEN=${apiKey}`,
-    `ANTHROPIC_API_KEY=`,
-    `ANTHROPIC_MODEL=${model.id}`,
-    `CLAUDECODE=`,
-    `GEMINI_API_KEY=${apiKey}`,
-    `OPENCODE_API_KEY=${apiKey}`,
-    `OPENAI_API_KEY=${apiKey}`,
-    `GITHUB_TOKEN=${apiKey}`,
-  ];
+  // Write env vars to a temp file so secrets don't leak via process args.
+  // Set only what the selected tool/provider needs.
+  const envVars = [];
+  if (tool === "claude") {
+    const provider = model.provider || "openrouter";
+    if (provider === "plan") {
+      // Paid plan: only set model, let Claude use its built-in auth
+      envVars.push(`ANTHROPIC_MODEL=${model.id}`);
+    } else if (provider === "anthropic") {
+      // Direct Anthropic API key
+      envVars.push(
+        `ANTHROPIC_API_KEY=${apiKey}`,
+        `ANTHROPIC_MODEL=${model.id}`
+      );
+    } else {
+      // OpenRouter (default)
+      // ANTHROPIC_API_KEY must be non-empty or Claude considers itself
+      // "not logged in" inside the clean Docker env. The actual auth goes
+      // through ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL.
+      envVars.push(
+        `ANTHROPIC_BASE_URL=${OPENROUTER_BASE_URL}`,
+        `ANTHROPIC_AUTH_TOKEN=${apiKey}`,
+        `ANTHROPIC_API_KEY=${apiKey}`,
+        `ANTHROPIC_MODEL=${model.id}`
+      );
+    }
+  } else if (tool === "gemini") {
+    if (apiKey) {
+      if (model.provider === "openrouter") {
+        envVars.push(`GEMINI_API_KEY=${apiKey}`);
+      } else {
+        envVars.push(`GOOGLE_API_KEY=${apiKey}`, `GEMINI_API_KEY=${apiKey}`);
+      }
+    }
+  } else if (tool === "opencode" && apiKey) {
+    envVars.push(`OPENCODE_API_KEY=${apiKey}`);
+  } else if (tool === "codex") {
+    if (apiKey) envVars.push(`OPENAI_API_KEY=${apiKey}`);
+  } else if (tool === "copilot" && apiKey) {
+    envVars.push(`GITHUB_TOKEN=${apiKey}`);
+  }
   const envFileContent = envVars.join("\n") + "\n";
   const envFilePath = path.join(os.tmpdir(), `cloding-env-${Date.now()}.tmp`);
   fs.writeFileSync(envFilePath, envFileContent, { mode: 0o600 });
@@ -572,6 +651,9 @@ function dockerRun(dockerArgs, models, interactive) {
 
   if (interactive) {
     cmd.push("-it");
+  } else if (prompt) {
+    // Allocate tty for one-shot mode so tool output streams visibly
+    cmd.push("-t");
   }
 
   if (autoRemove) {
@@ -583,13 +665,13 @@ function dockerRun(dockerArgs, models, interactive) {
     "--network", DOCKER_NETWORK,
     "--memory", memory,
     "--cpus", cpus,
-    "-v", `${workspace}:/workspace`,
+    "-v", `${workspace.replace(/\\/g, "/")}:/workspace`,
     "--env-file", envFilePath
   );
 
   if (tool !== "claude") {
-    // Map tool name to binary name (copilot → github-copilot)
-    const entrypoint = tool === "copilot" ? "github-copilot" : tool;
+    // Map tool name to binary name (copilot tool uses `copilot` binary)
+    const entrypoint = tool === "copilot" ? "copilot" : tool;
     cmd.push("--entrypoint", entrypoint);
   }
 
@@ -602,15 +684,20 @@ function dockerRun(dockerArgs, models, interactive) {
     } else if (tool === "opencode") {
       cmd.push("run", prompt);
     } else if (tool === "codex") {
-      cmd.push(prompt);
+      cmd.push("exec", prompt);
     }
   }
 
   if (tool === "gemini") {
-    cmd.push("--non-interactive");
     if (model.id) cmd.push("--model", model.id);
   } else if (tool === "opencode" && model.id) {
     cmd.push("--model", model.id);
+  } else if (tool === "codex") {
+    if (model.id) cmd.push("--model", model.id);
+    if (!interactive && prompt) cmd.push("--full-auto");
+    if (!interactive && prompt && !hasArg(extraClaudeArgs, "--skip-git-repo-check")) {
+      cmd.push("--skip-git-repo-check");
+    }
   }
 
   cmd.push(...extraClaudeArgs);
@@ -632,6 +719,11 @@ function dockerRun(dockerArgs, models, interactive) {
       console.log(`  \x1b[32m${savings}x cheaper than Opus\x1b[0m`);
     }
   }
+  if (usingLinkedCliAuth) {
+    console.log(
+      `  \x1b[33mNote:\x1b[0m ${apiKeyEnv} not set. Using existing ${tool} CLI account session.`
+    );
+  }
   console.log("");
 
   // Clean up env file on exit (contains API key)
@@ -643,13 +735,30 @@ function dockerRun(dockerArgs, models, interactive) {
   const child = spawn(cmd[0], cmd.slice(1), {
     stdio: "inherit",
   });
-  forwardSignals(child);
+
+  // Signal handlers: clean up env file and forward signal to child
+  const cleanupAndForward = (signal) => {
+    cleanupEnvFile();
+    if (child && !child.killed) {
+      child.kill(signal);
+    }
+  };
+  process.on("SIGINT", () => cleanupAndForward("SIGINT"));
+  process.on("SIGTERM", () => cleanupAndForward("SIGTERM"));
 
   child.on("exit", (code) => {
+    process.removeAllListeners("SIGINT");
+    process.removeAllListeners("SIGTERM");
     cleanupEnvFile();
+    if (code && code !== 0) {
+      console.error(`\n\x1b[31mContainer exited with code ${code}\x1b[0m`);
+      console.error(`Tip: Run with --no-rm to inspect logs: docker logs <container>`);
+    }
     process.exit(code ?? 0);
   });
   child.on("error", (err) => {
+    process.removeAllListeners("SIGINT");
+    process.removeAllListeners("SIGTERM");
     cleanupEnvFile();
     console.error(`Error launching Docker: ${err.message}`);
     console.error("Make sure Docker is installed and running.");
@@ -904,10 +1013,24 @@ function main() {
   const model = resolveModel(args.model, models);
   const tool = model.tool || "claude";
 
+  if (tool === "copilot") {
+    const nodeMajor = getNodeMajorVersion();
+    if (nodeMajor < 24) {
+      console.error(
+        `Error: Copilot CLI requires Node.js v24+.\n` +
+          `Current Node version: v${process.versions.node}\n\n` +
+          "Upgrade Node, then run: cloding -m copilot"
+      );
+      process.exit(1);
+    }
+  }
+
   // Validate API key (pipeline mode handles its own validation)
+  const isPlanProvider = model.provider === "plan";
   const apiKeyEnv = model.api_key_env || "OPENROUTER_API_KEY";
-  const apiKey = process.env[apiKeyEnv];
-  if (!apiKey) {
+  const apiKey = isPlanProvider ? "" : process.env[apiKeyEnv];
+  const usingLinkedCliAuth = !apiKey && canUseCliLinkedAuth(tool);
+  if (!apiKey && !usingLinkedCliAuth && !isPlanProvider) {
     console.error(
       `Error: ${apiKeyEnv} not set.\n\n` +
         `Please set it:  export ${apiKeyEnv}=...`
@@ -917,22 +1040,39 @@ function main() {
 
   // Build env for tool
   const runEnv = { ...process.env };
-  
+
   if (tool === "claude") {
-    runEnv.ANTHROPIC_BASE_URL = OPENROUTER_BASE_URL;
-    runEnv.ANTHROPIC_AUTH_TOKEN = apiKey;
-    runEnv.ANTHROPIC_API_KEY = "";
-    runEnv.ANTHROPIC_MODEL = model.id;
+    const provider = model.provider || "openrouter";
+    if (provider === "plan") {
+      // Paid plan: only set model, let Claude use its built-in auth
+      runEnv.ANTHROPIC_MODEL = model.id;
+    } else if (provider === "anthropic") {
+      // Direct Anthropic API key
+      runEnv.ANTHROPIC_API_KEY = apiKey;
+      runEnv.ANTHROPIC_MODEL = model.id;
+    } else {
+      // OpenRouter (default)
+      runEnv.ANTHROPIC_BASE_URL = OPENROUTER_BASE_URL;
+      runEnv.ANTHROPIC_AUTH_TOKEN = apiKey;
+      runEnv.ANTHROPIC_API_KEY = "";
+      runEnv.ANTHROPIC_MODEL = model.id;
+    }
     // Don't inherit CLAUDECODE — prevents "cannot launch inside another session" error
     delete runEnv.CLAUDECODE;
   } else if (tool === "gemini") {
-    runEnv.GEMINI_API_KEY = apiKey;
+    if (apiKey) {
+      runEnv.GEMINI_API_KEY = apiKey;
+    }
   } else if (tool === "opencode") {
     runEnv.OPENCODE_API_KEY = apiKey;
   } else if (tool === "codex") {
-    runEnv.OPENAI_API_KEY = apiKey;
+    if (apiKey) {
+      runEnv.OPENAI_API_KEY = apiKey;
+    }
   } else if (tool === "copilot") {
-    runEnv.GITHUB_TOKEN = apiKey;
+    if (apiKey) {
+      runEnv.GITHUB_TOKEN = apiKey;
+    }
   }
 
   // Build tool args
@@ -944,15 +1084,25 @@ function main() {
       runArgs.unshift("run");
       runArgs.push(args.prompt);
     } else if (tool === "codex") {
-      runArgs.push(args.prompt);
+      runArgs.push("exec", args.prompt);
     }
   }
 
   if (tool === "gemini") {
-    runArgs.push("--non-interactive");
-    if (model.id) runArgs.push("--model", model.id);
+    if (model.id) {
+      const modelId = usingLinkedCliAuth
+        ? normalizeGeminiModelForLinkedAuth(model.id)
+        : model.id;
+      runArgs.push("--model", modelId);
+    }
   } else if (tool === "opencode" && model.id) {
     runArgs.push("--model", model.id);
+  } else if (tool === "codex") {
+    if (model.id) runArgs.push("--model", model.id);
+    if (args.prompt) runArgs.push("--full-auto");
+    if (args.prompt && !hasArg(runArgs, "--skip-git-repo-check")) {
+      runArgs.push("--skip-git-repo-check");
+    }
   }
 
   // Print banner
@@ -970,11 +1120,21 @@ function main() {
   }
   console.log("");
 
+  if (isPlanProvider) {
+    console.log(
+      `\x1b[33mNote:\x1b[0m Using ${tool === "codex" ? "ChatGPT" : tool === "gemini" ? "Gemini" : "Claude"} paid plan/subscription. No API cost tracking.\n`
+    );
+  } else if (usingLinkedCliAuth) {
+    console.log(
+      `\x1b[33mNote:\x1b[0m ${apiKeyEnv} not set. Using existing ${tool} CLI account session.\n`
+    );
+  }
+
   // Launch tool
   // On Windows, npm globals are .cmd shims that need shell:true for resolution.
   const isWin = process.platform === "win32";
-  // Map tool name to binary name (copilot → github-copilot)
-  let spawnTool = tool === "copilot" ? "github-copilot" : tool;
+  // Map tool name to binary name (copilot tool uses `copilot` binary)
+  let spawnTool = tool === "copilot" ? "copilot" : tool;
   let spawnArgs = runArgs;
   let spawnShell = isWin;
 
@@ -987,16 +1147,25 @@ function main() {
 
     // Pass environment variables to WSL using WSLENV
     const wslenv = [];
-    if (apiKeyEnv) wslenv.push(`${apiKeyEnv}/u`);
-    // Add common ones just in case
-    wslenv.push("OPENAI_API_KEY/u");
-    wslenv.push("OPENROUTER_API_KEY/u");
+    if (apiKeyEnv && apiKey) wslenv.push(`${apiKeyEnv}/u`);
+    // Add common ones just in case (only if they exist)
+    if (runEnv.OPENAI_API_KEY) wslenv.push("OPENAI_API_KEY/u");
+    if (runEnv.OPENROUTER_API_KEY) wslenv.push("OPENROUTER_API_KEY/u");
     
     if (process.env.WSLENV) {
       runEnv.WSLENV = `${process.env.WSLENV}:${wslenv.join(":")}`;
     } else {
       runEnv.WSLENV = wslenv.join(":");
     }
+  }
+
+  // Suppress Node DEP0190 warning (shell:true + args on Windows)
+  if (spawnShell) {
+    const origEmit = process.emit.bind(process);
+    process.emit = function (event, ...eArgs) {
+      if (event === "warning" && eArgs[0]?.code === "DEP0190") return false;
+      return origEmit(event, ...eArgs);
+    };
   }
 
   const child = spawn(spawnTool, spawnArgs, {
@@ -1009,8 +1178,11 @@ function main() {
   // Filter WSL relay noise
   child.stderr.on("data", (data) => {
     const msg = data.toString();
-    // Discard the known non-fatal WSL relay error
+    // Discard known non-fatal noise
     if (msg.includes("WSL (") && msg.includes("ERROR: CreateProcessParseCommon")) {
+      return;
+    }
+    if (msg.includes("[DEP0190]") && msg.includes("DeprecationWarning")) {
       return;
     }
     process.stderr.write(data);
@@ -1019,10 +1191,18 @@ function main() {
   child.on("exit", (code) => process.exit(code ?? 0));
   child.on("error", (err) => {
     if (err.code === "ENOENT") {
-      console.error(
-        `Error: '${tool}' command not found.\n\n` +
-          `Install ${tool} first.`
-      );
+      if (tool === "copilot") {
+        console.error(
+          "Error: 'copilot' command not found.\n\n" +
+            "Install with: npm i -g @github/copilot\n" +
+            "Then ensure your npm global bin is in PATH."
+        );
+      } else {
+        console.error(
+          `Error: '${tool}' command not found.\n\n` +
+            `Install ${tool} first.`
+        );
+      }
     } else {
       console.error(`Error launching ${tool}: ${err.message}`);
     }

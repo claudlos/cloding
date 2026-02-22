@@ -109,7 +109,7 @@ class TestResolveBinary:
     def test_copilot_not_found_raises(self):
         with patch("shutil.which", return_value=None):
             with pytest.raises(StageError, match="GitHub Copilot CLI not found"):
-                _resolve_binary("github-copilot")
+                _resolve_binary("copilot")
 
     def test_generic_binary_not_found_raises(self):
         with patch("shutil.which", return_value=None):
@@ -117,20 +117,20 @@ class TestResolveBinary:
                 _resolve_binary("some-tool")
 
     def test_copilot_linux_returns_path(self):
-        with patch("shutil.which", return_value="/usr/local/bin/github-copilot"):
+        with patch("shutil.which", return_value="/usr/local/bin/copilot"):
             with patch("platform.system", return_value="Linux"):
-                exe, prefix = _resolve_binary("github-copilot")
-                assert exe == "/usr/local/bin/github-copilot"
+                exe, prefix = _resolve_binary("copilot")
+                assert exe == "/usr/local/bin/copilot"
                 assert prefix == []
 
     def test_copilot_windows_cmd_fallback(self, tmp_path):
         """On Windows with .CMD wrapper for copilot, should fall back to cmd /c."""
-        cmd_path = str(tmp_path / "github-copilot.cmd")
+        cmd_path = str(tmp_path / "copilot.cmd")
 
         with patch("shutil.which", return_value=cmd_path):
             with patch("platform.system", return_value="Windows"):
                 with patch.dict(os.environ, {"COMSPEC": "C:\\Windows\\cmd.exe"}):
-                    exe, prefix = _resolve_binary("github-copilot")
+                    exe, prefix = _resolve_binary("copilot")
                     assert exe == "C:\\Windows\\cmd.exe"
                     assert "/c" in prefix
                     assert cmd_path in prefix
@@ -341,3 +341,62 @@ class TestLocalRunnerRun:
                     await runner.run(binary_name="claude", env={}, cli_args=[], timeout=60)
 
         assert "CLAUDECODE" not in captured_env
+
+    async def test_plan_provider_env_passthrough(self):
+        """Plan provider env should only contain ANTHROPIC_MODEL, no auth vars."""
+        runner = LocalRunner()
+        mock_proc = AsyncMock()
+        mock_proc.returncode = 0
+        mock_proc.communicate = AsyncMock(return_value=(b'{"result":"ok"}', b""))
+
+        captured_env = {}
+
+        async def _capture_launch(*args, **kwargs):
+            captured_env.update(kwargs.get("env", {}))
+            return mock_proc
+
+        # Simulate what tool_handler produces for plan provider
+        plan_env = {"ANTHROPIC_MODEL": "claude-sonnet-4", "CLAUDECODE": ""}
+
+        with patch(f"{_MODULE}._resolve_binary", return_value=("/usr/bin/claude", [])):
+            with patch(f"{_MODULE}._launch", side_effect=_capture_launch):
+                await runner.run(
+                    binary_name="claude",
+                    env=plan_env,
+                    cli_args=["-p", "test"],
+                    timeout=60,
+                )
+
+        # ANTHROPIC_MODEL should be passed through
+        assert captured_env.get("ANTHROPIC_MODEL") == "claude-sonnet-4"
+        # No auth vars should be present in the env dict we passed
+        assert "ANTHROPIC_API_KEY" not in plan_env
+        assert "ANTHROPIC_BASE_URL" not in plan_env
+        assert "ANTHROPIC_AUTH_TOKEN" not in plan_env
+
+    async def test_env_vars_merged_with_os_environ(self):
+        """Runner should merge provided env with os.environ."""
+        runner = LocalRunner()
+        mock_proc = AsyncMock()
+        mock_proc.returncode = 0
+        mock_proc.communicate = AsyncMock(return_value=(b'{}', b''))
+
+        captured_env = {}
+
+        async def _capture_launch(*args, **kwargs):
+            captured_env.update(kwargs.get("env", {}))
+            return mock_proc
+
+        with patch(f"{_MODULE}._resolve_binary", return_value=("/usr/bin/claude", [])):
+            with patch(f"{_MODULE}._launch", side_effect=_capture_launch):
+                with patch.dict(os.environ, {"PATH": "/usr/bin", "HOME": "/home/user"}, clear=True):
+                    await runner.run(
+                        binary_name="claude",
+                        env={"ANTHROPIC_MODEL": "test"},
+                        cli_args=[],
+                        timeout=60,
+                    )
+
+        # Should contain both OS env and provided env
+        assert captured_env.get("ANTHROPIC_MODEL") == "test"
+        assert "PATH" in captured_env

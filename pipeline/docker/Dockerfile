@@ -1,4 +1,4 @@
-FROM node:20-slim
+FROM node:24-slim
 
 # Install system dependencies for Claude Code tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -14,8 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Claude Code CLI globally
 RUN npm install -g @anthropic-ai/claude-code
 
-# Install Gemini CLI, OpenCode, and Codex
-RUN npm install -g @google/gemini-cli opencode-ai@latest @openai/codex @github/copilot-cli
+# Install Gemini CLI, OpenCode, Codex, and Copilot
+RUN npm install -g @google/gemini-cli opencode-ai@latest @openai/codex @github/copilot
 
 # Create non-root user for security
 RUN groupadd -r coder && useradd -r -g coder -m -s /bin/bash coder

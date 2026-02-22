@@ -128,8 +128,10 @@ Files:
 
 | Shortcut | Model | Tool | API Key Env |
 |----------|-------|------|-------------|
-| gemini-3 | Gemini 3 Pro | Gemini CLI | `GOOGLE_API_KEY` |
-| codex-5 | Codex 5.3 High | Codex CLI | `OPENAI_API_KEY` |
+| gemini-3 | Gemini 3 Pro (Paid Plan) | Gemini CLI | *(none)* |
+| gemini-3-a | Gemini 3 Pro (API) | Gemini CLI | `GOOGLE_API_KEY` |
+| codex-5 | Codex (Paid Plan) | Codex CLI | *(none)* |
+| codex-5-a | Codex 5.3 High (API) | Codex CLI | `OPENAI_API_KEY` |
 | copilot | GitHub Copilot | Copilot CLI | `GITHUB_TOKEN` |
 
 Any OpenRouter model ID also works: `cloding -m meta-llama/llama-4-scout`
@@ -175,8 +177,8 @@ Any OpenRouter model ID also works: `cloding -m meta-llama/llama-4-scout`
 |----------|----------|---------|
 | `OPENROUTER_API_KEY` | Yes | Your OpenRouter API key. Get one at https://openrouter.ai/keys |
 | `CLODING_DEFAULT_MODEL` | No | Default model shortcut (default: qwen) |
-| `GOOGLE_API_KEY` | For gemini-3 | Direct Google API key for Gemini models |
-| `OPENAI_API_KEY` | For codex-5 | Direct OpenAI API key for Codex models |
+| `GOOGLE_API_KEY` | For gemini-3-a | Direct Google API key for Gemini models |
+| `OPENAI_API_KEY` | For codex-5-a | Direct OpenAI API key for Codex models |
 | `GITHUB_TOKEN` | For copilot | GitHub PAT with Copilot access |
 
 Internally set by `bin/cloding.js` when spawning claude (do not set manually):
