@@ -2,6 +2,15 @@
 
 Claude Code with any model via OpenRouter. 70x cheaper coding.
 
+## Publishing
+
+After every `git push`, always publish to npm:
+```bash
+npm version patch --no-git-tag-version
+npm publish
+```
+Then commit the version bump separately.
+
 ## Quick Commands
 
 ```bash
