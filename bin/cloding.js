@@ -460,7 +460,12 @@ function detectTools() {
       category: "prerequisite",
       displayName: "Docker",
       cmd: "docker",
-      installMethod: null,
+      installMethod: "native",
+      installCmd: {
+        darwin: ["bash", ["-c", "brew install --cask docker"]],
+        linux: ["bash", ["-c", "curl -fsSL https://get.docker.com | sudo sh"]],
+        win32: null,
+      },
       installHint: {
         darwin: "brew install --cask docker  OR  https://docs.docker.com/get-docker/",
         linux: "https://docs.docker.com/engine/install/",
@@ -591,16 +596,62 @@ async function handleSetup(args) {
   // Print current status
   printSetupStatus(tools);
 
-  // For prerequisites that are missing, print install hints
+  // Handle missing prerequisites — offer to install those we can auto-install
   const missingPrereqs = tools.filter((t) => t.category === "prerequisite" && !t.installed);
   if (missingPrereqs.length > 0) {
     const platform = process.platform;
-    console.log("  \x1b[1mMissing prerequisites\x1b[0m (install manually):");
-    for (const t of missingPrereqs) {
-      const hint = t.installHint[platform] || t.installHint.linux;
-      console.log(`    ${t.displayName}: ${hint}`);
+    const autoInstallable = missingPrereqs.filter(
+      (t) => t.installCmd && t.installCmd[platform]
+    );
+    const manualOnly = missingPrereqs.filter(
+      (t) => !t.installCmd || !t.installCmd[platform]
+    );
+
+    if (manualOnly.length > 0) {
+      console.log("  \x1b[1mMissing prerequisites\x1b[0m (install manually):");
+      for (const t of manualOnly) {
+        const hint = t.installHint[platform] || t.installHint.linux;
+        console.log(`    ${t.displayName}: ${hint}`);
+      }
+      console.log("");
     }
-    console.log("");
+
+    if (!checkOnly && autoInstallable.length > 0) {
+      for (const t of autoInstallable) {
+        const confirmed = await askConfirm(`  Install ${t.displayName}?`);
+        if (confirmed) {
+          console.log(`\n  Installing ${t.displayName}...`);
+          const ok = installTool(t);
+          if (ok) {
+            console.log(`    \x1b[32m✓\x1b[0m ${t.displayName} installed successfully`);
+            t.installed = true;
+            // Docker post-install: add user to docker group and start service
+            if (t.name === "docker" && platform === "linux") {
+              const user = process.env.USER || process.env.LOGNAME;
+              if (user) {
+                console.log(`    Adding ${user} to docker group...`);
+                spawnSync("sudo", ["usermod", "-aG", "docker", user], { stdio: "inherit" });
+              }
+              console.log("    Starting Docker service...");
+              const svcResult = spawnSync("sudo", ["service", "docker", "start"], { stdio: "inherit" });
+              if (svcResult.status !== 0) {
+                // WSL without systemd — try dockerd directly
+                console.log("    \x1b[33m!\x1b[0m Could not start Docker service.");
+                console.log("    Try: sudo dockerd &");
+              }
+              console.log("");
+              console.log("    \x1b[33mNote:\x1b[0m Log out and back in for docker group to take effect.");
+              console.log("    Or run: newgrp docker");
+            }
+          } else {
+            console.log(`    \x1b[31m✗\x1b[0m ${t.displayName} installation failed`);
+            const hint = t.installHint[platform] || t.installHint.linux;
+            console.log(`    Install manually: ${hint}`);
+          }
+          console.log("");
+        }
+      }
+    }
   }
 
   if (checkOnly) {
