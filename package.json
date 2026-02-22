@@ -1,7 +1,7 @@
 {
   "name": "cloding",
-  "version": "0.1.2",
-  "description": "Claude Code with any model via OpenRouter. Use Qwen, Haiku, Sonnet, or Opus at a fraction of the cost.",
+  "version": "0.2.0",
+  "description": "Run 5 AI coding CLIs (Claude Code, Gemini, Codex, Copilot, OpenCode) with any LLM via OpenRouter. Docker sandbox + multi-stage pipeline orchestration.",
   "bin": {
     "cloding": "bin/cloding.js"
   },
@@ -9,12 +9,17 @@
     "claude",
     "claude-code",
     "openrouter",
-    "qwen",
+    "gemini",
+    "codex",
+    "copilot",
+    "opencode",
     "ai",
     "coding",
     "llm",
-    "cheap",
-    "cost-effective"
+    "multi-tool",
+    "pipeline",
+    "docker",
+    "agentic-coding"
   ],
   "author": "Carlos",
   "license": "MIT",
