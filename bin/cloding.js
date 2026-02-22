@@ -29,6 +29,9 @@ const DEFAULT_MODEL = "qwen";
 const DOCKER_IMAGE = "cloding:latest";
 const DOCKER_NETWORK = "cloding-net";
 
+// Build-time version (set by Bun compile via define; undefined in npm mode)
+var CLODING_VERSION;
+
 // ──────────────────────────────────────────────
 // Signal forwarding — relay SIGINT/SIGTERM to child processes
 // ──────────────────────────────────────────────
@@ -91,10 +94,11 @@ function loadEnvFile() {
 // Model registry
 // ──────────────────────────────────────────────
 function loadModels() {
-  const modelsPath = path.join(__dirname, "..", "models.json");
   let models;
   try {
-    models = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
+    // require() works in both Node.js (resolves relative to __dirname) and
+    // Bun-compiled binaries (inlined at build time).
+    models = require("../models.json");
   } catch {
     console.error("Error: Could not load models.json");
     process.exit(1);
@@ -133,6 +137,8 @@ function parseArgs(argv) {
     listModels: false,
     version: false,
     help: false,
+    setup: false,
+    setupArgs: [],
     pipeline: false,
     pipelineArgs: [],
     docker: false,
@@ -144,6 +150,12 @@ function parseArgs(argv) {
   let i = 0;
   while (i < argv.length) {
     const arg = argv[i];
+
+    if (arg === "setup") {
+      args.setup = true;
+      args.setupArgs = argv.slice(i + 1);
+      break;
+    }
 
     if (arg === "pipeline") {
       args.pipeline = true;
@@ -200,6 +212,12 @@ function parseArgs(argv) {
 // Display helpers
 // ──────────────────────────────────────────────
 function printVersion() {
+  // In Bun-compiled binary, CLODING_VERSION is set at build time via define
+  if (typeof CLODING_VERSION !== "undefined") {
+    console.log(`cloding v${CLODING_VERSION}`);
+    return;
+  }
+  // npm-installed version: read from package.json on disk
   try {
     const pkg = JSON.parse(
       fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8")
@@ -219,6 +237,7 @@ USAGE:
   cloding -m haiku                   Use a specific model
   cloding -p "fix the bug"           Non-interactive single prompt
   cloding --list-models              Show available models and costs
+  cloding setup                      Detect and install all CLI tools
   cloding pipeline "Add auth"        Run the full pipeline (requires Python)
   cloding docker <command>           Docker container management
 
@@ -228,6 +247,11 @@ OPTIONS:
       --list-models       Show available models with pricing
   -v, --version           Show version
   -h, --help              Show this help
+
+SETUP COMMANDS:
+  cloding setup                      Check status and install missing CLI tools
+  cloding setup --check              Check status only (no installation)
+  cloding setup --force              Reinstall all CLI tools
 
 DOCKER COMMANDS:
   cloding docker build               Build the cloding Docker image
@@ -352,6 +376,289 @@ function dockerAvailable() {
   } catch {
     return false;
   }
+}
+
+// ──────────────────────────────────────────────
+// Setup command — detect and install CLI tools
+// ──────────────────────────────────────────────
+function commandExists(cmd) {
+  const isWin = process.platform === "win32";
+  try {
+    const result = spawnSync(isWin ? "where" : "which", [cmd], {
+      stdio: "ignore",
+      timeout: 5000,
+    });
+    return result.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+function getCommandVersion(cmd, versionFlag) {
+  try {
+    const result = spawnSync(cmd, [versionFlag || "--version"], {
+      encoding: "utf8",
+      timeout: 10000,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    if (result.status === 0) {
+      const out = (result.stdout || result.stderr || "").trim();
+      return out.split("\n")[0].slice(0, 80);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function askConfirm(question) {
+  return new Promise((resolve) => {
+    const readline = require("readline");
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.question(`${question} [Y/n] `, (answer) => {
+      rl.close();
+      const a = (answer || "y").trim().toLowerCase();
+      resolve(a === "y" || a === "yes" || a === "");
+    });
+  });
+}
+
+function detectTools() {
+  const platform = process.platform;
+
+  const tools = [
+    // ── Prerequisites (detect only, print hints) ──
+    {
+      name: "node",
+      category: "prerequisite",
+      displayName: "Node.js",
+      cmd: "node",
+      installMethod: null,
+      installHint: {
+        darwin: "brew install node  OR  https://nodejs.org",
+        linux: "curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash - && sudo apt-get install -y nodejs",
+        win32: "winget install OpenJS.NodeJS  OR  https://nodejs.org",
+      },
+    },
+    {
+      name: "python",
+      category: "prerequisite",
+      displayName: "Python 3.11+",
+      cmd: platform === "win32" ? "python" : "python3",
+      installMethod: null,
+      installHint: {
+        darwin: "brew install python@3.12  OR  https://python.org",
+        linux: "sudo apt install python3  OR  https://python.org",
+        win32: "winget install Python.Python.3.12  OR  https://python.org",
+      },
+    },
+    {
+      name: "docker",
+      category: "prerequisite",
+      displayName: "Docker",
+      cmd: "docker",
+      installMethod: null,
+      installHint: {
+        darwin: "brew install --cask docker  OR  https://docs.docker.com/get-docker/",
+        linux: "https://docs.docker.com/engine/install/",
+        win32: "winget install Docker.DockerDesktop  OR  https://docs.docker.com/get-docker/",
+      },
+    },
+    // ── CLI Tools (detect + install) ──
+    {
+      name: "claude",
+      category: "cli",
+      displayName: "Claude Code",
+      cmd: "claude",
+      installMethod: "native",
+      installCmd: {
+        darwin: ["bash", ["-c", "curl -fsSL https://claude.ai/install.sh | bash"]],
+        linux: ["bash", ["-c", "curl -fsSL https://claude.ai/install.sh | bash"]],
+        win32: ["powershell", ["-NoProfile", "-Command", "irm https://claude.ai/install.ps1 | iex"]],
+      },
+    },
+    {
+      name: "gemini",
+      category: "cli",
+      displayName: "Gemini CLI",
+      cmd: "gemini",
+      installMethod: "npm",
+      npmPackage: "@google/gemini-cli",
+    },
+    {
+      name: "codex",
+      category: "cli",
+      displayName: "Codex CLI",
+      cmd: "codex",
+      installMethod: "npm",
+      npmPackage: "@openai/codex",
+    },
+    {
+      name: "copilot",
+      category: "cli",
+      displayName: "GitHub Copilot CLI",
+      cmd: "copilot",
+      installMethod: "npm",
+      npmPackage: "@github/copilot",
+    },
+    {
+      name: "opencode",
+      category: "cli",
+      displayName: "OpenCode",
+      cmd: "opencode",
+      installMethod: "npm",
+      npmPackage: "opencode-ai",
+    },
+  ];
+
+  return tools.map((t) => {
+    const installed = commandExists(t.cmd);
+    return {
+      ...t,
+      installed,
+      versionStr: installed ? getCommandVersion(t.cmd) : null,
+    };
+  });
+}
+
+function printSetupStatus(tools) {
+  console.log("\n\x1b[36m⚡ cloding setup\x1b[0m — Tool Status\n");
+
+  const prerequisites = tools.filter((t) => t.category === "prerequisite");
+  const cliTools = tools.filter((t) => t.category === "cli");
+
+  console.log("  \x1b[1mPrerequisites:\x1b[0m");
+  for (const t of prerequisites) {
+    const icon = t.installed ? "\x1b[32m✓\x1b[0m" : "\x1b[31m✗\x1b[0m";
+    const ver = t.installed && t.versionStr ? `  \x1b[2m${t.versionStr}\x1b[0m` : "";
+    console.log(`    ${icon} ${t.displayName}${ver}`);
+  }
+
+  console.log("\n  \x1b[1mCLI Tools:\x1b[0m");
+  for (const t of cliTools) {
+    const icon = t.installed ? "\x1b[32m✓\x1b[0m" : "\x1b[33m○\x1b[0m";
+    const ver = t.installed && t.versionStr ? `  \x1b[2m${t.versionStr}\x1b[0m` : "";
+    console.log(`    ${icon} ${t.displayName}${ver}`);
+  }
+  console.log("");
+}
+
+function installNpmPackage(pkg) {
+  const isWin = process.platform === "win32";
+  console.log(`    Running: npm install -g ${pkg}`);
+  const result = spawnSync("npm", ["install", "-g", pkg], {
+    stdio: "inherit",
+    shell: isWin,
+    timeout: 120000,
+  });
+  return result.status === 0;
+}
+
+function installTool(tool) {
+  const platform = process.platform;
+
+  if (tool.installMethod === "native") {
+    const cmd = tool.installCmd[platform];
+    if (!cmd) {
+      console.log(`    \x1b[33m!\x1b[0m No native installer for ${platform}`);
+      return false;
+    }
+    console.log(`    Running native installer for ${tool.displayName}...`);
+    const result = spawnSync(cmd[0], cmd[1], {
+      stdio: "inherit",
+      timeout: 120000,
+    });
+    return result.status === 0;
+  }
+
+  if (tool.installMethod === "npm") {
+    return installNpmPackage(tool.npmPackage);
+  }
+
+  return false;
+}
+
+async function handleSetup(args) {
+  const force = args.setupArgs.includes("--force");
+  const checkOnly = args.setupArgs.includes("--check");
+
+  // Detect all tools
+  const tools = detectTools();
+
+  // Print current status
+  printSetupStatus(tools);
+
+  // For prerequisites that are missing, print install hints
+  const missingPrereqs = tools.filter((t) => t.category === "prerequisite" && !t.installed);
+  if (missingPrereqs.length > 0) {
+    const platform = process.platform;
+    console.log("  \x1b[1mMissing prerequisites\x1b[0m (install manually):");
+    for (const t of missingPrereqs) {
+      const hint = t.installHint[platform] || t.installHint.linux;
+      console.log(`    ${t.displayName}: ${hint}`);
+    }
+    console.log("");
+  }
+
+  if (checkOnly) {
+    const installed = tools.filter((t) => t.installed).length;
+    const total = tools.length;
+    console.log(`  ${installed}/${total} tools detected.\n`);
+    process.exit(0);
+  }
+
+  // Determine which CLI tools to install
+  const toInstall = tools.filter((t) => {
+    if (t.category !== "cli") return false;
+    if (force) return true;
+    return !t.installed;
+  });
+
+  if (toInstall.length === 0) {
+    console.log("  \x1b[32mAll CLI tools are already installed!\x1b[0m\n");
+    process.exit(0);
+  }
+
+  // List what will be installed
+  console.log(`  Will ${force ? "reinstall" : "install"} ${toInstall.length} tool(s):`);
+  for (const t of toInstall) {
+    const method = t.installMethod === "native" ? "native installer" : `npm: ${t.npmPackage}`;
+    console.log(`    - ${t.displayName}  (${method})`);
+  }
+  console.log("");
+
+  // Ask for confirmation
+  const confirmed = await askConfirm("  Proceed with installation?");
+  if (!confirmed) {
+    console.log("  Cancelled.\n");
+    process.exit(0);
+  }
+  console.log("");
+
+  // Install each tool
+  let succeeded = 0;
+  let failed = 0;
+  for (const tool of toInstall) {
+    console.log(`  Installing ${tool.displayName}...`);
+    const ok = installTool(tool);
+    if (ok) {
+      console.log(`    \x1b[32m✓\x1b[0m ${tool.displayName} installed successfully\n`);
+      succeeded++;
+    } else {
+      console.log(`    \x1b[31m✗\x1b[0m ${tool.displayName} installation failed\n`);
+      failed++;
+    }
+  }
+
+  console.log(
+    `  Done: \x1b[32m${succeeded} installed\x1b[0m` +
+    (failed > 0 ? `, \x1b[31m${failed} failed\x1b[0m` : "") +
+    "\n"
+  );
+  process.exit(failed > 0 ? 1 : 0);
 }
 
 function dockerImageExists() {
@@ -988,6 +1295,12 @@ function main() {
   if (args.listModels) {
     printModels(models);
     process.exit(0);
+  }
+
+  // ── Setup mode ──
+  if (args.setup) {
+    handleSetup(args);
+    return;
   }
 
   // ── Docker mode ──

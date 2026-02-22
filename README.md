@@ -17,19 +17,42 @@ Claude Opus 4.6 costs $5/$25 per Mtok.
 Qwen 3 Coder Next costs $0.12/$0.75 per Mtok.
 That's 42x cheaper on input, 33x cheaper on output.
 
+## Installation
+
+### Standalone Binary (recommended)
+
+No Node.js required — download a single binary:
+
+**macOS / Linux:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/claudlos/cloding/master/install.sh | bash
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/claudlos/cloding/master/install.ps1 | iex
+```
+
+### npm
+
+If you already have Node.js 18+:
+
+```bash
+npm install -g cloding
+```
+
 ## Quick Start
 
 ```bash
-# Install cloding
-npm install -g cloding
-
-# Install at least one tool CLI (Claude is default)
-npm install -g @anthropic-ai/claude-code
-
-# Required for default/OpenRouter shortcuts
+# Set your OpenRouter API key
 export OPENROUTER_API_KEY=sk-or-v1-your-key-here
 
-# Start interactive session (default model: qwen)
+# Install all CLI tools (Claude Code, Gemini, Codex, Copilot, OpenCode)
+cloding setup
+
+# Start coding
 cloding
 ```
 
@@ -42,6 +65,30 @@ cloding -p "fix failing tests"       # one-shot prompt
 cloding --list-models                # list shortcuts and prices
 cloding -h                           # help
 ```
+
+## Setup Command
+
+`cloding setup` detects and installs all supported CLI tools:
+
+```bash
+cloding setup              # check status + install missing tools
+cloding setup --check      # status report only, no installation
+cloding setup --force      # reinstall all tools
+```
+
+It checks for:
+
+**Prerequisites** (detected, not installed):
+- Node.js 18+
+- Python 3.11+ (for pipeline mode)
+- Docker (for Docker mode)
+
+**CLI Tools** (detected + installed automatically):
+- Claude Code — via native installer
+- Gemini CLI — via npm
+- Codex CLI — via npm
+- GitHub Copilot CLI — via npm
+- OpenCode — via npm
 
 ## Authentication
 
@@ -157,6 +204,14 @@ cloding -m copilot                            # use GitHub paid plan
 
 Unknown flags are passed through to the underlying CLI.
 
+### Setup
+
+```bash
+cloding setup              # detect + install missing CLI tools
+cloding setup --check      # status report only
+cloding setup --force      # reinstall all tools
+```
+
 ### Docker Mode
 
 ```bash
@@ -212,21 +267,13 @@ Pipeline flags:
 
 ## Prerequisites
 
-- Node.js 18+
-- Node.js 24+ if you want to run `copilot` / `cloding -m copilot`
-- OpenRouter key for default/OpenRouter shortcuts
-- Docker (optional, for Docker mode)
-- Python 3.11+ (optional, for pipeline mode)
+- **OpenRouter key** — for default/OpenRouter shortcuts ([get one here](https://openrouter.ai/keys))
+- **Node.js 18+** — required for CLI tool installs (Claude Code, Gemini, etc.)
+- **Node.js 24+** — if you want to run `copilot` / `cloding -m copilot`
+- **Docker** — optional, for Docker mode
+- **Python 3.11+** — optional, for pipeline mode
 
-Install CLIs you plan to use:
-
-```bash
-npm install -g @anthropic-ai/claude-code
-npm install -g @google/gemini-cli
-npm install -g @openai/codex
-npm install -g @github/copilot
-npm install -g opencode-ai
-```
+> **Tip:** Run `cloding setup` to automatically detect and install all CLI tools.
 
 ## Custom Models
 
