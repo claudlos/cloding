@@ -1,5 +1,9 @@
 # Introduction
 
+**Agentic Engineering Amplified**
+
+Cloding is a universal wrapper that lets you run **Claude Code**, **Gemini CLI**, **Codex CLI**, **OpenCode**, or **GitHub Copilot CLI** — use OpenRouter, Direct API keys, or link to your paid plan.
+
 Claude Code is a powerful agentic coding tool — it edits files, runs terminal commands, and manages your entire development workflow. But it costs **$5/Mtok input** and **$25/Mtok output**.
 
 **cloding** lets you run the exact same Claude Code experience with any model on [OpenRouter](https://openrouter.ai). Same tools, same file editing, same terminal access — just swap the model underneath.
@@ -20,20 +24,22 @@ Claude Code is a powerful agentic coding tool — it edits files, runs terminal 
 
 **One-line install** — Standalone binary, no Node.js required. `curl | bash` on Mac/Linux, `irm | iex` on Windows. Run `cloding setup` to install all 5 CLI tools automatically.
 
-**Model flexibility** — Use any OpenRouter model by ID or pick from built-in shortcuts. Mix models based on the task: Opus for planning, Qwen for execution.
+**Universal CLI wrapper** — Not just Claude Code. Run Gemini CLI, Codex CLI, GitHub Copilot CLI, or OpenCode — all through one interface with consistent flags and Docker support.
 
-**Docker sandboxing** — Claude Code has full access to your machine by default. cloding's Docker mode isolates the agent in a container with access to only the workspace you mount.
+**Flexible auth** — Use OpenRouter for any model, direct API keys (Anthropic, Google, OpenAI), or link to your paid plan (Claude, Gemini, ChatGPT, Copilot). Mix and match per session.
+
+**Docker sandboxing** — Run any CLI tool in an isolated container. No access to your secrets, SSH keys, or host filesystem. Just the workspace you mount.
 
 **Pipeline mode** — Multi-stage coding pipelines with parallel fan-out. Assign different models to different stages: Plan → Explore → Code → Review.
 
-**Zero lock-in** — All Claude Code flags pass through. It's the same CLI you already know, just cheaper.
+**Zero lock-in** — All flags pass through to the underlying CLI. It's the same tools you already know, just cheaper and more flexible.
 
 ## How it works
 
-cloding is a thin wrapper around Claude Code that routes API calls through OpenRouter instead of directly to Anthropic. When you run `cloding`, it:
+cloding is a thin wrapper that routes API calls through OpenRouter (or your chosen provider) instead of directly to the default API. When you run `cloding`, it:
 
-1. Starts Claude Code with the `--provider openrouter` flag
-2. Routes all API calls through your OpenRouter API key
-3. Uses whatever model you specify (defaults to Qwen 3 Coder)
+1. Resolves your model shortcut to a provider + model ID
+2. Sets the right environment variables for the chosen CLI tool
+3. Spawns the CLI (Claude Code, Gemini, Codex, Copilot, or OpenCode)
 
 That's it. No forks, no patches, no modified binaries. Just configuration.

@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: "cloding"
-  text: "Claude Code, any model."
-  tagline: Run Claude Code with any OpenRouter model — same tools, same workflow, fraction of the cost.
+  text: "Agentic Engineering Amplified"
+  tagline: Run Claude Code, Gemini CLI, Codex CLI, OpenCode, or GitHub Copilot CLI — use OpenRouter, Direct API keys, or link to your paid plan.
   actions:
     - theme: brand
       text: Get Started
