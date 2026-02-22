@@ -3,8 +3,9 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'cloding',
   description: 'Run Claude Code with any OpenRouter model. Same tools, fraction of the cost.',
+  base: '/cloding/',
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/cloding/logo.svg' }],
     ['meta', { name: 'theme-color', content: '#10b981' }],
     ['meta', { property: 'og:title', content: 'cloding — Claude Code, any model' }],
     ['meta', { property: 'og:description', content: 'Run Claude Code with any OpenRouter model. Same tools, fraction of the cost.' }],
