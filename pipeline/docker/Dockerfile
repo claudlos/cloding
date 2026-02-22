@@ -17,11 +17,16 @@ RUN npm install -g @anthropic-ai/claude-code
 # Install Gemini CLI, OpenCode, Codex, and Copilot
 RUN npm install -g @google/gemini-cli opencode-ai@latest @openai/codex @github/copilot
 
+# Add entrypoint wrappers for tools that need pre-auth
+COPY codex-entrypoint.sh /usr/local/bin/codex-entrypoint.sh
+RUN chmod +x /usr/local/bin/codex-entrypoint.sh
+
 # Create non-root user for security
 RUN groupadd -r coder && useradd -r -g coder -m -s /bin/bash coder
 
-# Create workspace and data directories
+# Create workspace, data, and Claude Code directories
 RUN mkdir -p /workspace /data && chown -R coder:coder /workspace /data
+RUN mkdir -p /home/coder/.claude/debug && chown -R coder:coder /home/coder/.claude
 
 # Set git defaults so Claude Code can commit
 RUN git config --system user.email "cloding@local" \

@@ -151,8 +151,8 @@ cloding -m meta-llama/llama-4-scout
 cloding -m qwen
 cloding -m sonnet-a -p "review this file"   # direct Anthropic API
 cloding -m opus-p                            # use Claude paid plan
-cloding -m codex-5 "implement retry logic"
-cloding -m copilot
+cloding -m codex-5                            # use OpenAI paid plan
+cloding -m copilot                            # use GitHub paid plan
 ```
 
 Unknown flags are passed through to the underlying CLI.
@@ -163,6 +163,8 @@ Unknown flags are passed through to the underlying CLI.
 cloding docker build
 cloding docker run "fix lint errors"
 cloding docker run -m sonnet-a "build endpoint tests"
+cloding docker run -m codex-5 "debug my code"
+cloding docker run -m opus-p "make a plan"
 cloding docker shell -m sonnet
 cloding docker status
 cloding docker stop

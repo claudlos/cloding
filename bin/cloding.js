@@ -617,13 +617,18 @@ function dockerRun(dockerArgs, models, interactive) {
       );
     } else {
       // OpenRouter (default)
-      // ANTHROPIC_API_KEY must be non-empty or Claude considers itself
-      // "not logged in" inside the clean Docker env. The actual auth goes
-      // through ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL.
+      // Auth goes through ANTHROPIC_AUTH_TOKEN (Bearer token).
+      // IMPORTANT: ANTHROPIC_API_KEY must be empty string, NOT the real key.
+      // The Anthropic SDK sends ANTHROPIC_API_KEY as an x-api-key header,
+      // and OpenRouter treats any non-empty x-api-key as requesting the
+      // Anthropic provider specifically — which fails for non-Anthropic
+      // models (qwen, deepseek, gemini, etc).
+      // Setting it to "" sends an empty x-api-key header that OpenRouter
+      // ignores, falling back to Bearer auth which routes correctly.
       envVars.push(
         `ANTHROPIC_BASE_URL=${OPENROUTER_BASE_URL}`,
         `ANTHROPIC_AUTH_TOKEN=${apiKey}`,
-        `ANTHROPIC_API_KEY=${apiKey}`,
+        `ANTHROPIC_API_KEY=`,
         `ANTHROPIC_MODEL=${model.id}`
       );
     }
@@ -669,9 +674,29 @@ function dockerRun(dockerArgs, models, interactive) {
     "--env-file", envFilePath
   );
 
+  // Mount host's ~/.claude.json (settings only, not credentials) so Claude Code
+  // has consistent config in Docker. We do NOT mount ~/.claude/.credentials.json
+  // because OAuth tokens would override our OpenRouter env vars.
+  if (tool === "claude") {
+    const homeDir = os.homedir();
+    const claudeJson = path.join(homeDir, ".claude.json");
+    if (fs.existsSync(claudeJson)) {
+      const jsonPath = claudeJson.replace(/\\/g, "/");
+      cmd.push("-v", `${jsonPath}:/home/coder/.claude.json:ro`);
+    }
+  }
+
   if (tool !== "claude") {
-    // Map tool name to binary name (copilot tool uses `copilot` binary)
-    const entrypoint = tool === "copilot" ? "copilot" : tool;
+    // Map tool name to entrypoint binary/script
+    let entrypoint;
+    if (tool === "codex") {
+      // Codex needs a wrapper that runs `codex login --with-api-key` first
+      entrypoint = "/usr/local/bin/codex-entrypoint.sh";
+    } else if (tool === "copilot") {
+      entrypoint = "copilot";
+    } else {
+      entrypoint = tool;
+    }
     cmd.push("--entrypoint", entrypoint);
   }
 
