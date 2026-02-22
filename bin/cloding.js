@@ -889,6 +889,43 @@ function dockerRun(dockerArgs, models, interactive) {
     process.exit(1);
   }
 
+  // Block plan-mode tools in Docker: subscription auth (OAuth tokens, system
+  // credential stores) cannot be passed into containers. Suggest alternatives.
+  if (isPlanProvider) {
+    const altLines = [];
+    if (tool === "claude") {
+      const base = modelArg.replace(/-p$/, "");
+      altLines.push(
+        `  Use API key mode:     cloding docker run -m ${base}-a "..."`,
+        `    Requires: export ANTHROPIC_API_KEY=...`,
+        `  Use OpenRouter:       cloding docker run -m ${base} "..."`,
+        `    Requires: export OPENROUTER_API_KEY=...`
+      );
+    } else if (tool === "codex") {
+      altLines.push(
+        `  Use API key mode:     cloding docker run -m codex-5-a "..."`,
+        `    Requires: export OPENAI_API_KEY=...`
+      );
+    } else if (tool === "gemini") {
+      altLines.push(
+        `  Use API key mode:     cloding docker run -m gemini-3-a "..."`,
+        `    Requires: export GOOGLE_API_KEY=...`
+      );
+    }
+    altLines.push(
+      `  Run without Docker:   cloding -m ${modelArg} "..."`
+    );
+    console.error(
+      `Error: Plan/subscription mode (${modelArg}) cannot authenticate inside Docker.\n\n` +
+        `Subscription auth tokens are stored on your host (system credential\n` +
+        `store, browser sessions, etc.) and cannot be passed into containers.\n\n` +
+        `Alternatives:\n` +
+        altLines.join("\n") +
+        "\n"
+    );
+    process.exit(1);
+  }
+
   // Validate workspace exists and is a directory
   if (!fs.existsSync(workspace)) {
     console.error(`Error: Workspace not found: ${workspace}`);
