@@ -12,14 +12,15 @@ class BaseRunner(ABC):
 
     @abstractmethod
     async def run(
-        self, env: dict[str, str], cli_args: list[str], timeout: int
+        self, binary_name: str, env: dict[str, str], cli_args: list[str], timeout: int
     ) -> RunResult:
         """
-        Execute Claude Code with the given environment and CLI args.
+        Execute the tool with the given environment and CLI args.
 
         Args:
+            binary_name: Name of the binary to run (e.g. "claude", "gemini")
             env: Environment variables to set
-            cli_args: Claude CLI arguments (e.g., ["-p", "prompt", "--output-format", "json"])
+            cli_args: CLI arguments
             timeout: Timeout in seconds
 
         Returns:

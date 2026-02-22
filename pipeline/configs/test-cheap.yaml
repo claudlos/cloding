@@ -9,16 +9,16 @@ models:
     model_id: anthropic/claude-haiku-4.5
     api_key_env: OPENROUTER_API_KEY
     base_url: "https://openrouter.ai/api"
-    cost_per_mtok_input: 0.80
-    cost_per_mtok_output: 4.0
+    cost_per_mtok_input: 1.0
+    cost_per_mtok_output: 5.0
 
   qwen:
     provider: openrouter
     model_id: qwen/qwen3-coder-next
     api_key_env: OPENROUTER_API_KEY
     base_url: "https://openrouter.ai/api"
-    cost_per_mtok_input: 0.07
-    cost_per_mtok_output: 0.30
+    cost_per_mtok_input: 0.12
+    cost_per_mtok_output: 0.75
 
 stages:
   - name: plan

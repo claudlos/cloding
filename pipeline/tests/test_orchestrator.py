@@ -14,6 +14,7 @@ from cloding.core.config import (
     ReviewConfig,
     StageConfig,
 )
+from cloding.models.cost_tracker import CostTracker
 from cloding.orchestrator import _print_dry_run, _print_summary
 from cloding.pipeline.result import PipelineResult
 from cloding.pipeline.state import PipelineState
@@ -116,8 +117,9 @@ class TestPrintSummary:
             review_iterations=1,
             stage_results=[],
         )
+        tracker = CostTracker()
         # Should not raise
-        _print_summary(result, "/workspace")
+        _print_summary(result, tracker)
 
     def test_failure_summary(self):
         result = PipelineResult(
@@ -125,14 +127,16 @@ class TestPrintSummary:
             run_id="test-456",
             error="Stage 'code' failed",
         )
-        _print_summary(result, "/workspace")
+        tracker = CostTracker()
+        _print_summary(result, tracker)
 
     def test_no_cost_breakdown(self):
         result = PipelineResult(
             success=True,
             run_id="test-789",
         )
-        _print_summary(result, "/workspace")
+        tracker = CostTracker()
+        _print_summary(result, tracker)
 
 
 @pytest.mark.asyncio(loop_scope="function")

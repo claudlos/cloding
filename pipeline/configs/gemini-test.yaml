@@ -1,0 +1,28 @@
+name: "gemini-test"
+
+# Testing Gemini CLI integration
+models:
+  gemini:
+    provider: openrouter
+    model_id: google/gemini-2.5-pro
+    tool: gemini
+    api_key_env: OPENROUTER_API_KEY
+    cost_per_mtok_input: 1.25
+    cost_per_mtok_output: 10.0
+
+stages:
+  - name: plan
+    model: gemini
+    prompt_file: prompts/plan.txt
+    max_turns: 10
+
+  - name: code
+    model: gemini
+    prompt_file: prompts/code.txt
+    max_turns: 20
+
+fanout:
+  enabled: false
+
+review:
+  max_iterations: 0

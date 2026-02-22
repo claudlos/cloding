@@ -238,12 +238,13 @@ DOCKER COMMANDS:
   cloding docker help                 Show Docker help
 
 MODELS (shortcuts):
-  qwen       Qwen 3 Coder        $0.07/$0.30 per Mtok  (default, ~71x cheaper)
-  haiku      Claude Haiku 4.5     $0.80/$4.00 per Mtok
+  qwen       Qwen 3 Coder        $0.12/$0.75 per Mtok  (default, ~42x cheaper)
+  haiku      Claude Haiku 4.5     $1.00/$5.00 per Mtok
   sonnet     Claude Sonnet 4      $3.00/$15.00 per Mtok
-  opus       Claude Opus 4.6      $15.00/$75.00 per Mtok
-  deepseek   DeepSeek Coder V3    $0.14/$0.28 per Mtok
+  opus       Claude Opus 4.6      $5.00/$25.00 per Mtok
+  deepseek   DeepSeek V3.2        $0.26/$0.38 per Mtok
   gemini     Gemini 2.5 Pro       $1.25/$10.00 per Mtok
+  copilot    GitHub Copilot       $0 (subscription)
 
   Or pass any OpenRouter model ID:
     cloding -m meta-llama/llama-4-scout
@@ -253,7 +254,7 @@ ENVIRONMENT:
   CLODING_DEFAULT_MODEL    Optional. Default model shortcut (default: qwen).
 
 EXAMPLES:
-  cloding                            # Start coding with Qwen ($0.07/Mtok)
+  cloding                            # Start coding with Qwen ($0.12/Mtok)
   cloding -m haiku                   # Quick task with Haiku
   cloding -m opus -p "Review arch"   # One-shot with Opus
   cloding docker build               # Build Docker image first
@@ -313,6 +314,8 @@ function resolveModel(modelArg, models) {
     name: modelArg,
     in: 0,
     out: 0,
+    provider: "openrouter",
+    api_key_env: "OPENROUTER_API_KEY",
     description: "Custom model",
   };
 }
@@ -527,6 +530,7 @@ function dockerRun(dockerArgs, models, interactive) {
 
   // Resolve model
   const model = resolveModel(modelArg, models);
+  const tool = model.tool || "claude";
 
   // Validate workspace exists and is a directory
   if (!fs.existsSync(workspace)) {
@@ -548,13 +552,18 @@ function dockerRun(dockerArgs, models, interactive) {
   }
 
   // Write env vars to a temp file so the API key doesn't leak in `ps aux`
-  const envFileContent = [
+  const envVars = [
     `ANTHROPIC_BASE_URL=${OPENROUTER_BASE_URL}`,
     `ANTHROPIC_AUTH_TOKEN=${apiKey}`,
     `ANTHROPIC_API_KEY=`,
     `ANTHROPIC_MODEL=${model.id}`,
     `CLAUDECODE=`,
-  ].join("\n") + "\n";
+    `GEMINI_API_KEY=${apiKey}`,
+    `OPENCODE_API_KEY=${apiKey}`,
+    `OPENAI_API_KEY=${apiKey}`,
+    `GITHUB_TOKEN=${apiKey}`,
+  ];
+  const envFileContent = envVars.join("\n") + "\n";
   const envFilePath = path.join(os.tmpdir(), `cloding-env-${Date.now()}.tmp`);
   fs.writeFileSync(envFilePath, envFileContent, { mode: 0o600 });
 
@@ -575,14 +584,35 @@ function dockerRun(dockerArgs, models, interactive) {
     "--memory", memory,
     "--cpus", cpus,
     "-v", `${workspace}:/workspace`,
-    "--env-file", envFilePath,
-    DOCKER_IMAGE
+    "--env-file", envFilePath
   );
 
-  // Add claude args
-  if (!interactive && prompt) {
-    cmd.push("-p", prompt);
+  if (tool !== "claude") {
+    // Map tool name to binary name (copilot → github-copilot)
+    const entrypoint = tool === "copilot" ? "github-copilot" : tool;
+    cmd.push("--entrypoint", entrypoint);
   }
+
+  cmd.push(DOCKER_IMAGE);
+
+  // Add tool-specific args
+  if (!interactive && prompt) {
+    if (tool === "claude" || tool === "gemini" || tool === "copilot") {
+      cmd.push("-p", prompt);
+    } else if (tool === "opencode") {
+      cmd.push("run", prompt);
+    } else if (tool === "codex") {
+      cmd.push(prompt);
+    }
+  }
+
+  if (tool === "gemini") {
+    cmd.push("--non-interactive");
+    if (model.id) cmd.push("--model", model.id);
+  } else if (tool === "opencode" && model.id) {
+    cmd.push("--model", model.id);
+  }
+
   cmd.push(...extraClaudeArgs);
 
   // Print banner
@@ -591,6 +621,7 @@ function dockerRun(dockerArgs, models, interactive) {
   console.log(
     `\x1b[36m⚡ cloding docker\x1b[0m → ${model.name}${costInfo}`
   );
+  console.log(`  Tool: ${tool}`);
   console.log(`  Container: ${containerName}`);
   console.log(`  Workspace: ${workspace} → /workspace`);
   console.log(`  Resources: ${memory} RAM, ${cpus} CPUs`);
@@ -869,40 +900,62 @@ function main() {
     return;
   }
 
+  // ── Simple mode: launch tool with OpenRouter ──
+  const model = resolveModel(args.model, models);
+  const tool = model.tool || "claude";
+
   // Validate API key (pipeline mode handles its own validation)
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKeyEnv = model.api_key_env || "OPENROUTER_API_KEY";
+  const apiKey = process.env[apiKeyEnv];
   if (!apiKey) {
     console.error(
-      "Error: OPENROUTER_API_KEY not set.\n\n" +
-        "Get your key at https://openrouter.ai/keys\n" +
-        "Then either:\n" +
-        "  1. Create a .env file:  OPENROUTER_API_KEY=sk-or-v1-...\n" +
-        "  2. Set it:  export OPENROUTER_API_KEY=sk-or-v1-...\n"
+      `Error: ${apiKeyEnv} not set.\n\n` +
+        `Please set it:  export ${apiKeyEnv}=...`
     );
     process.exit(1);
   }
 
-  // ── Simple mode: launch claude with OpenRouter ──
-  const model = resolveModel(args.model, models);
+  // Build env for tool
+  const runEnv = { ...process.env };
+  
+  if (tool === "claude") {
+    runEnv.ANTHROPIC_BASE_URL = OPENROUTER_BASE_URL;
+    runEnv.ANTHROPIC_AUTH_TOKEN = apiKey;
+    runEnv.ANTHROPIC_API_KEY = "";
+    runEnv.ANTHROPIC_MODEL = model.id;
+    // Don't inherit CLAUDECODE — prevents "cannot launch inside another session" error
+    delete runEnv.CLAUDECODE;
+  } else if (tool === "gemini") {
+    runEnv.GEMINI_API_KEY = apiKey;
+  } else if (tool === "opencode") {
+    runEnv.OPENCODE_API_KEY = apiKey;
+  } else if (tool === "codex") {
+    runEnv.OPENAI_API_KEY = apiKey;
+  } else if (tool === "copilot") {
+    runEnv.GITHUB_TOKEN = apiKey;
+  }
 
-  // Build env for claude
-  const claudeEnv = { ...process.env };
-  claudeEnv.ANTHROPIC_BASE_URL = OPENROUTER_BASE_URL;
-  claudeEnv.ANTHROPIC_AUTH_TOKEN = apiKey;
-  claudeEnv.ANTHROPIC_API_KEY = "";
-  claudeEnv.ANTHROPIC_MODEL = model.id;
-
-  // Don't inherit CLAUDECODE — prevents "cannot launch inside another session" error
-  delete claudeEnv.CLAUDECODE;
-
-  // Build claude args
-  const claudeArgs = [...args.claudeArgs];
+  // Build tool args
+  const runArgs = [...args.claudeArgs];
   if (args.prompt) {
-    claudeArgs.push("-p", args.prompt);
+    if (tool === "claude" || tool === "gemini" || tool === "copilot") {
+      runArgs.push("-p", args.prompt);
+    } else if (tool === "opencode") {
+      runArgs.unshift("run");
+      runArgs.push(args.prompt);
+    } else if (tool === "codex") {
+      runArgs.push(args.prompt);
+    }
+  }
+
+  if (tool === "gemini") {
+    runArgs.push("--non-interactive");
+    if (model.id) runArgs.push("--model", model.id);
+  } else if (tool === "opencode" && model.id) {
+    runArgs.push("--model", model.id);
   }
 
   // Print banner
-  const shortcut = args.model || process.env.CLODING_DEFAULT_MODEL || DEFAULT_MODEL;
   const costInfo =
     model.in > 0
       ? ` ($${model.in}/$${model.out} per Mtok)`
@@ -917,27 +970,61 @@ function main() {
   }
   console.log("");
 
-  // Launch claude
+  // Launch tool
   // On Windows, npm globals are .cmd shims that need shell:true for resolution.
-  // We pass args as an array and let Node handle escaping — never build a command string.
   const isWin = process.platform === "win32";
-  const child = spawn("claude", claudeArgs, {
-    stdio: "inherit",
-    env: claudeEnv,
-    shell: isWin,
+  // Map tool name to binary name (copilot → github-copilot)
+  let spawnTool = tool === "copilot" ? "github-copilot" : tool;
+  let spawnArgs = runArgs;
+  let spawnShell = isWin;
+
+  if (tool === "codex" && isWin) {
+    // Wrap with WSL
+    spawnTool = "wsl";
+    // Using --cd to current directory
+    spawnArgs = ["--cd", process.cwd(), "codex", ...runArgs];
+    spawnShell = false; // wsl is an .exe
+
+    // Pass environment variables to WSL using WSLENV
+    const wslenv = [];
+    if (apiKeyEnv) wslenv.push(`${apiKeyEnv}/u`);
+    // Add common ones just in case
+    wslenv.push("OPENAI_API_KEY/u");
+    wslenv.push("OPENROUTER_API_KEY/u");
+    
+    if (process.env.WSLENV) {
+      runEnv.WSLENV = `${process.env.WSLENV}:${wslenv.join(":")}`;
+    } else {
+      runEnv.WSLENV = wslenv.join(":");
+    }
+  }
+
+  const child = spawn(spawnTool, spawnArgs, {
+    stdio: ["inherit", "inherit", "pipe"], // Inherit stdin/out, pipe stderr to filter noise
+    env: runEnv,
+    shell: spawnShell,
   });
   forwardSignals(child);
+
+  // Filter WSL relay noise
+  child.stderr.on("data", (data) => {
+    const msg = data.toString();
+    // Discard the known non-fatal WSL relay error
+    if (msg.includes("WSL (") && msg.includes("ERROR: CreateProcessParseCommon")) {
+      return;
+    }
+    process.stderr.write(data);
+  });
 
   child.on("exit", (code) => process.exit(code ?? 0));
   child.on("error", (err) => {
     if (err.code === "ENOENT") {
       console.error(
-        "Error: 'claude' command not found.\n\n" +
-          "Install Claude Code first:\n" +
-          "  npm install -g @anthropic-ai/claude-code\n"
+        `Error: '${tool}' command not found.\n\n` +
+          `Install ${tool} first.`
       );
     } else {
-      console.error(`Error launching claude: ${err.message}`);
+      console.error(`Error launching ${tool}: ${err.message}`);
     }
     process.exit(1);
   });

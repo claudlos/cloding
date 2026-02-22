@@ -78,7 +78,7 @@ Files:
 - **pipeline/cloding/fanout/**: Task splitter, parallel runner (asyncio.Semaphore), merge
 - **pipeline/cloding/models/**: Model registry (config-based cost estimation for OpenRouter), cost tracker with CSV export
 - **pipeline/cloding/cli/**: Argparse CLI entry point (`cloding-pipeline` script)
-- **pipeline/configs/**: 8 YAML pipeline configs (see below)
+- **pipeline/configs/**: 9 YAML pipeline configs (see below)
 - **pipeline/prompts/**: Stage prompt templates (plan.txt, explore.txt, code.txt, review.txt)
 
 ## Key Files
@@ -92,7 +92,8 @@ Files:
 | `pipeline/cloding/pipeline/stage.py` | Stage ABC + PlanStage, ExploreStage, CodeStage, ReviewStage |
 | `pipeline/cloding/core/config.py` | YAML config loading + dataclass hierarchy |
 | `pipeline/cloding/core/workspace.py` | Git workspace prep: branch creation (`cloding/`), stash, safety checks |
-| `pipeline/cloding/runners/local_runner.py` | Runs claude CLI via asyncio subprocess |
+| `pipeline/cloding/core/tool_handler.py` | Tool handlers for each CLI (ClaudeCode, Gemini, OpenCode, Codex, Copilot) |
+| `pipeline/cloding/runners/local_runner.py` | Runs CLI tools via asyncio subprocess |
 | `pipeline/cloding/runners/docker_runner.py` | Runs claude CLI in Docker containers |
 | `pipeline/cloding/models/registry.py` | Model registry + config-based cost estimation (primary cost source for OpenRouter) |
 | `pipeline/cloding/models/cost_tracker.py` | Per-stage cost tracking with CSV export |
@@ -107,6 +108,7 @@ Files:
 | `qwen-fanout.yaml` | Parallel fan-out: splits tasks, runs N workers concurrently |
 | `opus-plan-qwen-code.yaml` | Opus for planning, Qwen for coding — best quality/cost ratio |
 | `human-loop.yaml` | Human-in-the-loop review: pauses for approval between stages |
+| `copilot-test.yaml` | GitHub Copilot CLI integration testing |
 | `qwen-tools-test.yaml` | Tests Qwen's tool use capabilities (Read, Write, Grep, Glob, Bash) |
 | `test-cheap.yaml` | Minimal config for fast testing |
 | `test-fanout.yaml` | Fan-out config for testing parallel execution |
@@ -115,12 +117,20 @@ Files:
 
 | Shortcut | Model | Input $/Mtok | Output $/Mtok |
 |----------|-------|-------------|---------------|
-| qwen | Qwen 3 Coder | $0.07 | $0.30 |
-| haiku | Claude Haiku 4.5 | $0.80 | $4.00 |
+| qwen | Qwen 3 Coder | $0.12 | $0.75 |
+| haiku | Claude Haiku 4.5 | $1.00 | $5.00 |
 | sonnet | Claude Sonnet 4 | $3.00 | $15.00 |
-| opus | Claude Opus 4.6 | $15.00 | $75.00 |
-| deepseek | DeepSeek Coder V3 | $0.14 | $0.28 |
+| opus | Claude Opus 4.6 | $5.00 | $25.00 |
+| deepseek | DeepSeek V3.2 | $0.26 | $0.38 |
 | gemini | Gemini 2.5 Pro | $1.25 | $10.00 |
+
+## Direct API Models
+
+| Shortcut | Model | Tool | API Key Env |
+|----------|-------|------|-------------|
+| gemini-3 | Gemini 3 Pro | Gemini CLI | `GOOGLE_API_KEY` |
+| codex-5 | Codex 5.3 High | Codex CLI | `OPENAI_API_KEY` |
+| copilot | GitHub Copilot | Copilot CLI | `GITHUB_TOKEN` |
 
 Any OpenRouter model ID also works: `cloding -m meta-llama/llama-4-scout`
 
@@ -165,6 +175,9 @@ Any OpenRouter model ID also works: `cloding -m meta-llama/llama-4-scout`
 |----------|----------|---------|
 | `OPENROUTER_API_KEY` | Yes | Your OpenRouter API key. Get one at https://openrouter.ai/keys |
 | `CLODING_DEFAULT_MODEL` | No | Default model shortcut (default: qwen) |
+| `GOOGLE_API_KEY` | For gemini-3 | Direct Google API key for Gemini models |
+| `OPENAI_API_KEY` | For codex-5 | Direct OpenAI API key for Codex models |
+| `GITHUB_TOKEN` | For copilot | GitHub PAT with Copilot access |
 
 Internally set by `bin/cloding.js` when spawning claude (do not set manually):
 - `ANTHROPIC_BASE_URL` → `https://openrouter.ai/api/v1`

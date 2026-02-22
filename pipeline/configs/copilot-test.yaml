@@ -1,0 +1,29 @@
+name: "copilot-test"
+
+# Testing GitHub Copilot CLI integration
+# Requires GITHUB_TOKEN env var (GitHub PAT with Copilot access)
+models:
+  copilot:
+    provider: github
+    model_id: copilot
+    tool: copilot
+    api_key_env: GITHUB_TOKEN
+    cost_per_mtok_input: 0.0
+    cost_per_mtok_output: 0.0
+
+stages:
+  - name: plan
+    model: copilot
+    prompt_file: prompts/plan.txt
+    max_turns: 10
+
+  - name: code
+    model: copilot
+    prompt_file: prompts/code.txt
+    max_turns: 20
+
+fanout:
+  enabled: false
+
+review:
+  max_iterations: 0

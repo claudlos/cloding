@@ -8,24 +8,24 @@ models:
     model_id: anthropic/claude-opus-4.6
     api_key_env: OPENROUTER_API_KEY
     base_url: "https://openrouter.ai/api"
-    cost_per_mtok_input: 15.0
-    cost_per_mtok_output: 75.0
+    cost_per_mtok_input: 5.0
+    cost_per_mtok_output: 25.0
 
   haiku:
     provider: openrouter
     model_id: anthropic/claude-haiku-4.5
     api_key_env: OPENROUTER_API_KEY
     base_url: "https://openrouter.ai/api"
-    cost_per_mtok_input: 0.80
-    cost_per_mtok_output: 4.0
+    cost_per_mtok_input: 1.0
+    cost_per_mtok_output: 5.0
 
   qwen:
     provider: openrouter
     model_id: qwen/qwen3-coder-next
     api_key_env: OPENROUTER_API_KEY
     base_url: "https://openrouter.ai/api"
-    cost_per_mtok_input: 0.07
-    cost_per_mtok_output: 0.30
+    cost_per_mtok_input: 0.12
+    cost_per_mtok_output: 0.75
 
 stages:
   - name: plan
@@ -51,6 +51,22 @@ stages:
     max_budget_usd: 2.00
     timeout_seconds: 900
 
+  - name: test
+    model: qwen
+    prompt_file: prompts/test.txt
+    max_turns: 30
+    max_budget_usd: 1.00
+    timeout_seconds: 600
+    allowed_tools: [Read, Bash, Grep, Glob, Edit, Write]
+
+  - name: lint
+    model: qwen
+    prompt_file: prompts/lint.txt
+    max_turns: 15
+    max_budget_usd: 0.50
+    timeout_seconds: 300
+    allowed_tools: [Read, Bash, Grep, Glob, Edit, Write]
+
   - name: review
     model: opus
     prompt_file: prompts/review.txt
@@ -69,6 +85,18 @@ fanout:
 review:
   max_iterations: 3
   pass_threshold: "PASS"
+
+verify:
+  enabled: true
+  agents:
+    - model: opus
+      prompt_file: prompts/verify.txt
+    - model: haiku
+      prompt_file: prompts/verify.txt
+    - model: qwen
+      prompt_file: prompts/verify.txt
+  consensus_threshold: 0.67
+  max_iterations: 3
 
 docker:
   image: cloding:latest

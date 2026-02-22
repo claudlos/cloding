@@ -10,8 +10,11 @@ from cloding.core.config import ModelConfig, StageConfig
 from cloding.pipeline.stage import (
     CodeStage,
     ExploreStage,
+    LintStage,
     PlanStage,
     ReviewStage,
+    TestStage,
+    VerifyStage,
     create_stage,
     STAGE_CLASSES,
 )
@@ -176,13 +179,30 @@ class TestCreateStage:
         stage = create_stage(config, _make_model())
         assert isinstance(stage, ReviewStage)
 
+    def test_creates_test_stage(self):
+        config = _make_stage_config(name="test", prompt_file="prompts/test.txt")
+        stage = create_stage(config, _make_model())
+        assert isinstance(stage, TestStage)
+
+    def test_creates_lint_stage(self):
+        config = _make_stage_config(name="lint", prompt_file="prompts/lint.txt")
+        stage = create_stage(config, _make_model())
+        assert isinstance(stage, LintStage)
+
+    def test_creates_verify_stage(self):
+        config = _make_stage_config(name="verify", prompt_file="prompts/verify.txt")
+        stage = create_stage(config, _make_model())
+        assert isinstance(stage, VerifyStage)
+
     def test_unknown_stage_raises(self):
         config = _make_stage_config(name="unknown")
         with pytest.raises(ValueError, match="Unknown stage type"):
             create_stage(config, _make_model())
 
     def test_stage_classes_registry(self):
-        assert set(STAGE_CLASSES.keys()) == {"plan", "explore", "code", "review"}
+        assert set(STAGE_CLASSES.keys()) == {
+            "plan", "explore", "code", "review", "test", "lint", "verify",
+        }
 
 
 @pytest.mark.asyncio(loop_scope="function")
@@ -237,6 +257,72 @@ class TestBuildPrompt:
         prompt = await stage.build_prompt(state)
         assert "PLAN.md" in prompt
         assert "git diff" in prompt
+
+    async def test_test_stage_prompt(self):
+        config = _make_stage_config(name="test", prompt_file="prompts/test.txt")
+        stage = TestStage(config=config, model_config=_make_model(), prompts_dir="/nonexistent")
+        state = PipelineState(user_request="test")
+        prompt = await stage.build_prompt(state)
+        assert "test suite" in prompt
+        assert "PLAN.md" in prompt
+
+    async def test_test_stage_with_feedback(self):
+        config = _make_stage_config(name="test", prompt_file="prompts/test.txt")
+        stage = TestStage(config=config, model_config=_make_model(), prompts_dir="/nonexistent")
+        state = PipelineState(
+            user_request="test",
+            review_feedback="3 tests failing",
+            review_iteration=1,
+        )
+        prompt = await stage.build_prompt(state)
+        assert "3 tests failing" in prompt
+
+    async def test_lint_stage_prompt(self):
+        config = _make_stage_config(name="lint", prompt_file="prompts/lint.txt")
+        stage = LintStage(config=config, model_config=_make_model(), prompts_dir="/nonexistent")
+        state = PipelineState(user_request="test")
+        prompt = await stage.build_prompt(state)
+        assert "static analysis" in prompt
+        assert "PLAN.md" in prompt
+
+    async def test_lint_stage_with_feedback(self):
+        config = _make_stage_config(name="lint", prompt_file="prompts/lint.txt")
+        stage = LintStage(config=config, model_config=_make_model(), prompts_dir="/nonexistent")
+        state = PipelineState(
+            user_request="test",
+            review_feedback="Unused imports",
+            review_iteration=1,
+        )
+        prompt = await stage.build_prompt(state)
+        assert "Unused imports" in prompt
+
+    async def test_verify_stage_prompt(self):
+        config = _make_stage_config(name="verify", prompt_file="prompts/verify.txt")
+        stage = VerifyStage(config=config, model_config=_make_model(), prompts_dir="/nonexistent")
+        state = PipelineState(user_request="test")
+        prompt = await stage.build_prompt(state)
+        assert "PLAN.md" in prompt
+        assert "git diff" in prompt
+        assert "Verify" in prompt
+
+    async def test_verify_stage_with_feedback(self):
+        config = _make_stage_config(name="verify", prompt_file="prompts/verify.txt")
+        stage = VerifyStage(config=config, model_config=_make_model(), prompts_dir="/nonexistent")
+        state = PipelineState(
+            user_request="test",
+            review_feedback="Missing edge case handling",
+            review_iteration=2,
+        )
+        prompt = await stage.build_prompt(state)
+        assert "Missing edge case handling" in prompt
+        assert "iteration 2" in prompt
+
+    async def test_verify_stage_no_feedback(self):
+        config = _make_stage_config(name="verify", prompt_file="prompts/verify.txt")
+        stage = VerifyStage(config=config, model_config=_make_model(), prompts_dir="/nonexistent")
+        state = PipelineState(user_request="test")
+        prompt = await stage.build_prompt(state)
+        assert "Previous verification feedback" not in prompt
 
 
 # --- Tests for _make_result ---
@@ -357,7 +443,7 @@ class FakeStageRunner(BaseRunner):
     def __init__(self, result: RunResult):
         self._result = result
 
-    async def run(self, env, cli_args, timeout):
+    async def run(self, binary_name, env, cli_args, timeout):
         return self._result
 
 

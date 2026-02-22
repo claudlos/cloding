@@ -1,0 +1,28 @@
+name: "codex-test"
+
+# Testing Codex integration via WSL on Windows
+models:
+  codex:
+    provider: openrouter
+    model_id: openai/gpt-4o-2024-08-06
+    tool: codex
+    api_key_env: OPENROUTER_API_KEY
+    cost_per_mtok_input: 2.5
+    cost_per_mtok_output: 10.0
+
+stages:
+  - name: plan
+    model: codex
+    prompt_file: prompts/plan.txt
+    max_turns: 10
+
+  - name: code
+    model: codex
+    prompt_file: prompts/code.txt
+    max_turns: 20
+
+fanout:
+  enabled: false
+
+review:
+  max_iterations: 0

@@ -47,14 +47,15 @@ class DockerRunner(BaseRunner):
         self.logger = get_logger("docker_runner", category="DOCKER")
 
     async def run(
-        self, env: dict[str, str], cli_args: list[str], timeout: int
+        self, binary_name: str, env: dict[str, str], cli_args: list[str], timeout: int
     ) -> RunResult:
         """
-        Run Claude Code in a Docker container.
+        Run CLI tool in a Docker container.
 
         Args:
+            binary_name: Tool binary name (e.g. "claude", "gemini")
             env: Environment variables to inject
-            cli_args: Claude CLI arguments
+            cli_args: CLI arguments
             timeout: Timeout in seconds
 
         Returns:
@@ -67,12 +68,13 @@ class DockerRunner(BaseRunner):
                 "  https://docs.docker.com/get-docker/"
             )
 
-        cmd = self._build_command(env, cli_args)
+        cmd = self._build_command(binary_name, env, cli_args)
 
         self.logger.info(
-            "Running in Docker: %s (model: %s)",
+            "Running in Docker: %s (tool: %s, model: %s)",
             self.image,
-            env.get("ANTHROPIC_MODEL", "?"),
+            binary_name,
+            env.get("ANTHROPIC_MODEL", env.get("GEMINI_MODEL", "unknown")),
         )
         if self.container_name:
             self.logger.info("Container: %s", self.container_name)
@@ -123,7 +125,7 @@ class DockerRunner(BaseRunner):
             raise StageError(f"Docker runner failed: {err}") from err
 
     def _build_command(
-        self, env: dict[str, str], cli_args: list[str]
+        self, binary_name: str, env: dict[str, str], cli_args: list[str]
     ) -> list[str]:
         """Build the full docker run command as an argument list."""
         cmd = [
@@ -146,9 +148,15 @@ class DockerRunner(BaseRunner):
             cmd.extend(["-e", f"{key}={value}"])
 
         # Always strip CLAUDECODE to prevent nesting errors
-        cmd.extend(["-e", "CLAUDECODE="])
+        if "CLAUDECODE" not in env:
+            cmd.extend(["-e", "CLAUDECODE="])
+
+        # Override entrypoint for non-claude tools (must come before image name)
+        if binary_name != "claude":
+            cmd.extend(["--entrypoint", binary_name])
 
         cmd.append(self.image)
+
         cmd.extend(cli_args)
         return cmd
 

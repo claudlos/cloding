@@ -37,6 +37,18 @@ class StageResult:
 
 
 @dataclass
+class VerifyAgentResult:
+    """Result from a single verification agent."""
+
+    model: str
+    passed: bool
+    feedback: str = ""
+    cost_usd: float = 0.0
+    tokens_in: int = 0
+    tokens_out: int = 0
+
+
+@dataclass
 class PipelineResult:
     """Final result of a complete pipeline run."""
 
@@ -48,3 +60,5 @@ class PipelineResult:
     review_iterations: int = 0
     run_id: str = ""
     error: Optional[str] = None
+    verify_results: list[VerifyAgentResult] = field(default_factory=list)
+    verify_consensus: bool = False

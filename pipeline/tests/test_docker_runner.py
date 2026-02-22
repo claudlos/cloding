@@ -27,7 +27,7 @@ class TestDockerCommandBuild:
         }
         cli_args = ["-p", "write code", "--output-format", "json"]
 
-        cmd = runner._build_command(env, cli_args)
+        cmd = runner._build_command("claude", env, cli_args)
 
         assert cmd[0] == "docker"
         assert cmd[1] == "run"
@@ -48,13 +48,13 @@ class TestDockerCommandBuild:
 
     def test_no_workspace(self):
         runner = DockerRunner(image="img:v1", workspace_path="")
-        cmd = runner._build_command({}, ["-p", "test"])
+        cmd = runner._build_command("claude", {}, ["-p", "test"])
         assert "-v" not in cmd
 
     def test_env_vars_injected(self):
         runner = DockerRunner(image="img:v1")
         env = {"KEY1": "val1", "KEY2": "val2"}
-        cmd = runner._build_command(env, [])
+        cmd = runner._build_command("claude", env, [])
 
         # Each env var should have -e KEY=VALUE
         e_indices = [i for i, x in enumerate(cmd) if x == "-e"]
@@ -64,14 +64,14 @@ class TestDockerCommandBuild:
 
     def test_claudecode_stripped(self):
         runner = DockerRunner(image="img:v1")
-        cmd = runner._build_command({}, [])
+        cmd = runner._build_command("claude", {}, [])
         e_indices = [i for i, x in enumerate(cmd) if x == "-e"]
         env_values = [cmd[i + 1] for i in e_indices]
         assert "CLAUDECODE=" in env_values
 
     def test_named_container(self):
         runner = DockerRunner(image="img:v1", container_name="my-worker")
-        cmd = runner._build_command({}, [])
+        cmd = runner._build_command("claude", {}, [])
         assert "--name" in cmd
         idx = cmd.index("--name")
         assert cmd[idx + 1] == "my-worker"
@@ -83,7 +83,7 @@ class TestDockerRunnerRun:
         runner = DockerRunner()
         with patch("shutil.which", return_value=None):
             with pytest.raises(DockerError, match="Docker not found"):
-                await runner.run(env={}, cli_args=[], timeout=60)
+                await runner.run(binary_name="claude", env={}, cli_args=[], timeout=60)
 
     async def test_successful_run(self):
         runner = DockerRunner(image="test:latest")
@@ -96,6 +96,7 @@ class TestDockerRunnerRun:
         with patch("shutil.which", return_value="/usr/bin/docker"):
             with patch(f"{_MODULE}._launch", return_value=mock_proc):
                 result = await runner.run(
+                    binary_name="claude",
                     env={"KEY": "val"},
                     cli_args=["-p", "test"],
                     timeout=60,
@@ -116,6 +117,7 @@ class TestDockerRunnerRun:
         with patch("shutil.which", return_value="/usr/bin/docker"):
             with patch(f"{_MODULE}._launch", return_value=mock_proc):
                 result = await runner.run(
+                    binary_name="claude",
                     env={},
                     cli_args=[],
                     timeout=1,
@@ -137,6 +139,7 @@ class TestDockerRunnerRun:
         with patch("shutil.which", return_value="/usr/bin/docker"):
             with patch(f"{_MODULE}._launch", return_value=mock_proc):
                 result = await runner.run(
+                    binary_name="claude",
                     env={},
                     cli_args=[],
                     timeout=1,
@@ -158,6 +161,7 @@ class TestDockerRunnerRun:
         with patch("shutil.which", return_value="/usr/bin/docker"):
             with patch(f"{_MODULE}._launch", return_value=mock_proc):
                 result = await runner.run(
+                    binary_name="claude",
                     env={"KEY": "val"},
                     cli_args=["-p", "test"],
                     timeout=60,
@@ -176,6 +180,7 @@ class TestDockerRunnerRun:
         with patch("shutil.which", return_value="/usr/bin/docker"):
             with patch(f"{_MODULE}._launch", return_value=mock_proc):
                 result = await runner.run(
+                    binary_name="claude",
                     env={},
                     cli_args=["-p", "test"],
                     timeout=60,
@@ -205,7 +210,7 @@ class TestDockerRunnerRun:
 
         with patch("shutil.which", return_value="/usr/bin/docker"):
             with patch(f"{_MODULE}._launch", side_effect=_smart_launch):
-                result = await runner.run(env={}, cli_args=[], timeout=1)
+                result = await runner.run(binary_name="claude", env={}, cli_args=[], timeout=1)
 
         assert result.exit_code == -1
         assert "timed out" in result.stderr
@@ -217,7 +222,7 @@ class TestDockerRunnerRun:
         with patch("shutil.which", return_value="/usr/bin/docker"):
             with patch(f"{_MODULE}._launch", side_effect=OSError("no such file")):
                 with pytest.raises(StageError, match="Docker runner failed"):
-                    await runner.run(env={}, cli_args=[], timeout=60)
+                    await runner.run(binary_name="claude", env={}, cli_args=[], timeout=60)
 
 
 @pytest.mark.asyncio(loop_scope="function")

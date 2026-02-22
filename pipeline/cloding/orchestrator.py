@@ -5,6 +5,7 @@ from pathlib import Path
 
 from cloding.core.config import PipelineConfig, load_config
 from cloding.core.logger import get_logger, init_logging
+from cloding.core.progress import ProgressTracker
 from cloding.core.workspace import get_diff_summary, prepare_workspace
 from cloding.models.cost_tracker import CostTracker
 from cloding.pipeline.pipeline import Pipeline
@@ -67,6 +68,14 @@ async def run_pipeline(
         _print_dry_run(config)
         return PipelineResult(success=True, run_id="dry-run")
 
+    # Generate or reuse run_id
+    current_run_id = run_id or Pipeline._generate_run_id()
+
+    # Build progress tracker
+    progress_tracker = ProgressTracker(
+        request=request, config_name=config.name, run_id=current_run_id
+    )
+
     # Prepare workspace (git branch)
     branch = await prepare_workspace(
         workspace=config.workspace_path,
@@ -109,14 +118,38 @@ async def run_pipeline(
         prompts_dir=prompts_dir,
     )
 
-    result = await pipeline.run(
-        user_request=request,
-        context_files=context_files,
-        resume_state=resume_state,
-    )
+    # Run with progress tracker TUI
+    with progress_tracker:
+        result = await pipeline.run(
+            user_request=request,
+            context_files=context_files,
+            resume_state=resume_state,
+            progress_tracker=progress_tracker,
+        )
 
-    # Print summary
-    _print_summary(result, config.workspace_path)
+    # Get git diff stat for summary
+    git_diff_stat = ""
+    try:
+        git_diff_stat = await get_diff_summary(config.workspace_path)
+    except Exception:
+        pass  # Non-critical — skip if git unavailable
+
+    # Print rich terminal summary
+    _print_summary(result, pipeline.cost_tracker)
+
+    # Save RUN_SUMMARY.md to workspace
+    try:
+        pipeline.cost_tracker.save_summary_md(
+            workspace_path=config.workspace_path,
+            run_id=result.run_id,
+            user_request=request,
+            success=result.success,
+            review_passed=result.review_passed if result.review_iterations > 0 else None,
+            review_iterations=result.review_iterations,
+            git_diff_stat=git_diff_stat,
+        )
+    except Exception as err:
+        logger.warning("Failed to save RUN_SUMMARY.md: %s", err)
 
     return result
 
@@ -150,25 +183,35 @@ def _print_dry_run(config: PipelineConfig) -> None:
     )
 
 
-def _print_summary(result: PipelineResult, workspace: str) -> None:
-    """Print pipeline result summary."""
-    logger.info("=" * 60)
+def _print_summary(result: PipelineResult, cost_tracker: CostTracker) -> None:
+    """Print pipeline result summary with rich cost breakdown."""
+    BOLD = "\033[1m"
+    GREEN = "\033[32m"
+    RED = "\033[31m"
+    DIM = "\033[2m"
+    RESET = "\033[0m"
+
+    print()
+    print(f"  {DIM}{'=' * 60}{RESET}")
+
     if result.success:
-        logger.info("Pipeline SUCCEEDED")
+        print(f"  {GREEN}{BOLD}Pipeline SUCCEEDED{RESET}")
     else:
-        logger.info("Pipeline FAILED: %s", result.error or "unknown error")
+        print(f"  {RED}{BOLD}Pipeline FAILED{RESET}: {result.error or 'unknown error'}")
 
-    logger.info("Run ID: %s", result.run_id)
-    logger.info("Total cost: $%.4f", result.total_cost_usd)
+    print(f"  {DIM}Run ID: {result.run_id}{RESET}")
 
-    if result.cost_breakdown:
-        logger.info("Cost breakdown:")
-        for stage, cost in result.cost_breakdown.items():
-            logger.info("  %s: $%.4f", stage, cost)
+    if result.review_iterations > 0:
+        review_color = GREEN if result.review_passed else RED
+        print(
+            f"  Review: {review_color}"
+            f"{'PASSED' if result.review_passed else 'FAILED'}{RESET} "
+            f"({result.review_iterations} iteration(s))"
+        )
 
-    logger.info("Review: %s (%d iterations)",
-                "PASSED" if result.review_passed else "NOT PASSED",
-                result.review_iterations)
+    # Rich cost table
+    print(cost_tracker.format_terminal_summary())
 
-    logger.info("Stages completed: %d", len(result.stage_results))
-    logger.info("=" * 60)
+    print(f"  {DIM}Stages completed: {len(result.stage_results)}{RESET}")
+    print(f"  {DIM}{'=' * 60}{RESET}")
+    print()
