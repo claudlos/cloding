@@ -16,7 +16,7 @@ _launch = asyncio.create_subprocess_exec
 
 
 def _resolve_binary(binary_name: str) -> tuple[str, list[str]]:
-    """Resolve the actual binary, handling Windows .CMD wrappers for Claude."""
+    """Resolve the actual binary, handling Windows .CMD wrappers."""
     # Special case: codex on Windows should run via WSL
     if binary_name == "codex" and platform.system() == "Windows":
         wsl_path = shutil.which("wsl")
@@ -24,7 +24,13 @@ def _resolve_binary(binary_name: str) -> tuple[str, list[str]]:
             raise StageError("Codex requires WSL on Windows, but 'wsl' was not found in PATH.")
         return wsl_path, ["codex"]
 
-    binary_path = shutil.which(binary_name)
+    # Copilot CLI naming has varied (`copilot` vs `github-copilot`).
+    copilot_aliases = ("copilot", "github-copilot")
+    if binary_name in copilot_aliases:
+        binary_path = shutil.which("copilot") or shutil.which("github-copilot")
+    else:
+        binary_path = shutil.which(binary_name)
+
     if not binary_path:
         # Special case for 'claude' if not found but 'claude.cmd' might be
         if binary_name == "claude":
@@ -32,15 +38,15 @@ def _resolve_binary(binary_name: str) -> tuple[str, list[str]]:
                 "Claude Code CLI not found in PATH. "
                 "Install with: npm i -g @anthropic-ai/claude-code"
             )
-        if binary_name == "github-copilot":
+        if binary_name in copilot_aliases:
             raise StageError(
                 "GitHub Copilot CLI not found in PATH. "
-                "Install with: npm i -g @github/copilot-cli"
+                "Install with: npm i -g @github/copilot"
             )
         raise StageError(f"Binary '{binary_name}' not found in PATH.")
 
     # On Windows, .CMD wrappers for npm globals need special handling
-    if binary_name in ("claude", "github-copilot") and platform.system() == "Windows" and binary_path.lower().endswith(".cmd"):
+    if binary_name in ("claude", "copilot", "github-copilot") and platform.system() == "Windows" and binary_path.lower().endswith(".cmd"):
         if binary_name == "claude":
             # The .CMD wrapper calls: node "<dir>/node_modules/@anthropic-ai/claude-code/cli.js" %*
             cmd_dir = Path(binary_path).parent

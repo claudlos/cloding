@@ -31,9 +31,12 @@ class ClaudeCodeHandler(ToolHandler):
 
     def build_env(self, model_config: ModelConfig) -> Dict[str, str]:
         env = {}
-        api_key = os.environ.get(model_config.api_key_env, "")
 
-        if model_config.provider == "openrouter":
+        if model_config.provider == "plan":
+            # Paid plan: only set model, let Claude use its built-in auth
+            env["ANTHROPIC_MODEL"] = model_config.model_id
+        elif model_config.provider == "openrouter":
+            api_key = os.environ.get(model_config.api_key_env, "")
             env["ANTHROPIC_BASE_URL"] = (
                 model_config.base_url or "https://openrouter.ai/api"
             )
@@ -41,9 +44,11 @@ class ClaudeCodeHandler(ToolHandler):
             env["ANTHROPIC_API_KEY"] = ""
             env["ANTHROPIC_MODEL"] = model_config.model_id
         else:
+            # Direct Anthropic API (provider == "anthropic" or other)
+            api_key = os.environ.get(model_config.api_key_env, "")
             env["ANTHROPIC_API_KEY"] = api_key
             env["ANTHROPIC_MODEL"] = model_config.model_id
-        
+
         # Strip CLAUDECODE to prevent nesting errors
         env["CLAUDECODE"] = ""
         return env
@@ -73,23 +78,24 @@ class GeminiHandler(ToolHandler):
 
     def build_env(self, model_config: ModelConfig) -> Dict[str, str]:
         env = {}
-        api_key = os.environ.get(model_config.api_key_env, "")
-        
-        if model_config.provider == "openrouter":
+
+        if model_config.provider == "plan":
+            # Paid plan: no API key, let Gemini use its built-in auth
+            pass
+        elif model_config.provider == "openrouter":
+            api_key = os.environ.get(model_config.api_key_env, "")
             env["GEMINI_API_KEY"] = api_key
         else:
             # Direct Google API
+            api_key = os.environ.get(model_config.api_key_env, "")
             env["GOOGLE_API_KEY"] = api_key
             env["GEMINI_API_KEY"] = api_key  # Some versions use this
         return env
 
     def build_cli_args(self, stage_config: StageConfig, model_config: ModelConfig, prompt: str) -> List[str]:
-        # Based on Gemini CLI docs: headless mode for scripting
-        # Assuming 'gemini -p "prompt"' or similar. 
-        # Refined based on https://geminicli.com/docs/
+        # Gemini CLI uses -p for non-interactive/headless mode
         args = [
             "-p", prompt,
-            "--non-interactive",
         ]
         if model_config.model_id:
             args.extend(["--model", model_config.model_id])
@@ -125,13 +131,13 @@ class CodexHandler(ToolHandler):
 
     def build_env(self, model_config: ModelConfig) -> Dict[str, str]:
         env = {}
-        api_key = os.environ.get(model_config.api_key_env, "")
 
-        if model_config.provider == "openrouter":
-            # For Codex CLI via OpenRouter (if supported)
-            env["OPENAI_API_KEY"] = api_key
+        if model_config.provider == "plan":
+            # Paid plan: no API key, let Codex use its built-in ChatGPT auth
+            pass
         else:
-            # Direct OpenAI API
+            # API mode (openai or openrouter)
+            api_key = os.environ.get(model_config.api_key_env, "")
             env["OPENAI_API_KEY"] = api_key
         return env
 
@@ -143,6 +149,8 @@ class CodexHandler(ToolHandler):
 
         # Add full-auto for non-interactive coding
         args.append("--full-auto")
+        # Permit runs in non-git workspaces (common in ephemeral containers)
+        args.append("--skip-git-repo-check")
         return args
 
     def get_binary_name(self) -> str:
@@ -163,7 +171,7 @@ class CopilotHandler(ToolHandler):
         return ["-p", prompt]
 
     def get_binary_name(self) -> str:
-        return "github-copilot"
+        return "copilot"
 
 
 TOOL_HANDLERS: Dict[str, ToolHandler] = {

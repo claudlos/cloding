@@ -211,11 +211,13 @@ def _validate_config(config: PipelineConfig) -> None:
     for name, model in config.models.items():
         if not model.model_id:
             raise ConfigError(f"Model '{name}' missing model_id.")
-        if not model.api_key_env:
+        if not model.api_key_env and model.provider != "plan":
             raise ConfigError(f"Model '{name}' missing api_key_env.")
 
     # Warn (but don't error) if API keys aren't set -- they may be set at runtime
     for name, model in config.models.items():
+        if model.provider == "plan":
+            continue  # Plan models don't need API keys
         key = os.environ.get(model.api_key_env, "")
         if not key:
             import warnings

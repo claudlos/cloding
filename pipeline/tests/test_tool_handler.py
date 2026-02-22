@@ -76,7 +76,7 @@ class TestCopilotHandler:
 
     def test_binary_name(self):
         handler = CopilotHandler()
-        assert handler.get_binary_name() == "github-copilot"
+        assert handler.get_binary_name() == "copilot"
 
 
 class TestToolHandlerRegistry:
@@ -96,6 +96,14 @@ class TestToolHandlerRegistry:
         with pytest.raises(ValueError, match="Unknown tool"):
             get_tool_handler("nonexistent-tool")
 
+    def test_get_tool_handler_error_lists_available(self):
+        """Error message should include available tool names."""
+        with pytest.raises(ValueError) as exc_info:
+            get_tool_handler("nonexistent-tool")
+        error_msg = str(exc_info.value)
+        for tool_name in ["claude-code", "gemini", "opencode", "codex", "copilot"]:
+            assert tool_name in error_msg
+
 
 class TestClaudeCodeHandler:
     def test_build_env_openrouter(self):
@@ -114,6 +122,19 @@ class TestClaudeCodeHandler:
         assert env["ANTHROPIC_MODEL"] == "qwen/qwen3-coder-next"
         assert env["CLAUDECODE"] == ""
 
+    def test_build_env_openrouter_default_base_url(self):
+        """OpenRouter with no base_url should default to https://openrouter.ai/api."""
+        handler = ClaudeCodeHandler()
+        model = _make_model(
+            name="haiku-o", provider="openrouter",
+            model_id="anthropic/claude-haiku-4-5",
+            api_key_env="OPENROUTER_API_KEY",
+            base_url=None,
+        )
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-or-test"}):
+            env = handler.build_env(model)
+        assert env["ANTHROPIC_BASE_URL"] == "https://openrouter.ai/api"
+
     def test_build_env_anthropic(self):
         handler = ClaudeCodeHandler()
         model = _make_model(
@@ -127,8 +148,85 @@ class TestClaudeCodeHandler:
         assert env["ANTHROPIC_MODEL"] == "claude-sonnet-4-20250514"
         assert "ANTHROPIC_BASE_URL" not in env
 
+    def test_build_env_anthropic_no_openrouter_vars(self):
+        """Direct Anthropic should NOT set OpenRouter vars (BASE_URL, AUTH_TOKEN)."""
+        handler = ClaudeCodeHandler()
+        model = _make_model(
+            name="opus-a", provider="anthropic",
+            model_id="claude-opus-4-6",
+            api_key_env="ANTHROPIC_API_KEY",
+        )
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-ant-test"}):
+            env = handler.build_env(model)
+        assert "ANTHROPIC_BASE_URL" not in env
+        assert "ANTHROPIC_AUTH_TOKEN" not in env
+        assert env["ANTHROPIC_API_KEY"] == "sk-ant-test"
+        assert env["ANTHROPIC_MODEL"] == "claude-opus-4-6"
+        assert env["CLAUDECODE"] == ""
+
+    def test_build_env_plan_provider(self):
+        """Plan provider should only set ANTHROPIC_MODEL, no auth vars."""
+        handler = ClaudeCodeHandler()
+        model = _make_model(
+            name="sonnet-p", provider="plan",
+            model_id="claude-sonnet-4",
+            api_key_env="",
+        )
+        env = handler.build_env(model)
+        assert env["ANTHROPIC_MODEL"] == "claude-sonnet-4"
+        assert env["CLAUDECODE"] == ""
+        # Must NOT contain any auth-related vars
+        assert "ANTHROPIC_API_KEY" not in env
+        assert "ANTHROPIC_BASE_URL" not in env
+        assert "ANTHROPIC_AUTH_TOKEN" not in env
+
+    def test_build_env_plan_does_not_read_env_vars(self):
+        """Plan provider should not call os.environ.get() for API keys."""
+        handler = ClaudeCodeHandler()
+        model = _make_model(
+            name="haiku-p", provider="plan",
+            model_id="claude-haiku-4-5",
+            api_key_env="",
+        )
+        # Even with API keys in the environment, plan should ignore them
+        with patch.dict(os.environ, {
+            "OPENROUTER_API_KEY": "should-not-appear",
+            "ANTHROPIC_API_KEY": "should-not-appear",
+        }):
+            env = handler.build_env(model)
+        assert "should-not-appear" not in env.values()
+
     def test_binary_name(self):
         assert ClaudeCodeHandler().get_binary_name() == "claude"
+
+    def test_build_cli_args_basic(self):
+        handler = ClaudeCodeHandler()
+        model = _make_model(model_id="test-model")
+        stage = _make_stage_config()
+        args = handler.build_cli_args(stage, model, "fix the bug")
+        assert "-p" in args
+        assert "fix the bug" in args
+        assert "--output-format" in args
+        assert "--max-turns" in args
+        assert "--dangerously-skip-permissions" in args
+
+    def test_build_cli_args_allowed_tools(self):
+        handler = ClaudeCodeHandler()
+        model = _make_model(model_id="test-model")
+        stage = _make_stage_config(allowed_tools=["Read", "Write", "Bash"])
+        args = handler.build_cli_args(stage, model, "test")
+        assert "--allowedTools" in args
+        idx = args.index("--allowedTools")
+        assert args[idx + 1] == "Read,Write,Bash"
+
+    def test_build_cli_args_disallowed_tools(self):
+        handler = ClaudeCodeHandler()
+        model = _make_model(model_id="test-model")
+        stage = _make_stage_config(disallowed_tools=["Bash"])
+        args = handler.build_cli_args(stage, model, "test")
+        assert "--disallowedTools" in args
+        idx = args.index("--disallowedTools")
+        assert args[idx + 1] == "Bash"
 
 
 class TestGeminiHandler:
@@ -151,7 +249,6 @@ class TestGeminiHandler:
         args = handler.build_cli_args(stage, model, "test prompt")
         assert "-p" in args
         assert "test prompt" in args
-        assert "--non-interactive" in args
         assert "--model" in args
         assert "gemini-2.5-pro" in args
 
@@ -196,6 +293,38 @@ class TestCodexHandler:
         assert args[0] == "exec"
         assert "test prompt" in args
         assert "--model" in args
+        assert "--full-auto" in args
+
+    def test_build_env_plan_provider(self):
+        """Plan provider should not set OPENAI_API_KEY."""
+        handler = CodexHandler()
+        model = _make_model(
+            name="codex-5", provider="plan",
+            model_id="", api_key_env="",
+            tool="codex",
+        )
+        env = handler.build_env(model)
+        assert "OPENAI_API_KEY" not in env
+
+    def test_build_env_plan_does_not_read_env_vars(self):
+        """Plan provider should not read OPENAI_API_KEY from environment."""
+        handler = CodexHandler()
+        model = _make_model(
+            name="codex-5", provider="plan",
+            model_id="", api_key_env="",
+            tool="codex",
+        )
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "should-not-appear"}):
+            env = handler.build_env(model)
+        assert "should-not-appear" not in env.values()
+
+    def test_build_cli_args_plan_no_model_flag(self):
+        """Plan mode with empty model_id should not pass --model."""
+        handler = CodexHandler()
+        model = _make_model(model_id="", tool="codex")
+        stage = _make_stage_config()
+        args = handler.build_cli_args(stage, model, "test prompt")
+        assert "--model" not in args
         assert "--full-auto" in args
 
     def test_binary_name(self):

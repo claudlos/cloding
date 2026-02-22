@@ -27,6 +27,87 @@
     "out": 25.00,
     "description": "Most capable. Use for architecture and planning."
   },
+  "haiku-o": {
+    "id": "anthropic/claude-haiku-4.5",
+    "name": "Claude Haiku 4.5 (OpenRouter)",
+    "provider": "openrouter",
+    "api_key_env": "OPENROUTER_API_KEY",
+    "in": 1.00,
+    "out": 5.00,
+    "description": "Haiku via OpenRouter. Same as 'haiku'."
+  },
+  "haiku-a": {
+    "id": "claude-haiku-4-5",
+    "name": "Claude Haiku 4.5 (Anthropic API)",
+    "provider": "anthropic",
+    "api_key_env": "ANTHROPIC_API_KEY",
+    "in": 1.00,
+    "out": 5.00,
+    "description": "Haiku via direct Anthropic API key."
+  },
+  "haiku-p": {
+    "id": "claude-haiku-4-5",
+    "name": "Claude Haiku 4.5 (Paid Plan)",
+    "provider": "plan",
+    "api_key_env": "",
+    "in": 0.0,
+    "out": 0.0,
+    "description": "Haiku via Claude paid plan/subscription. No API key needed."
+  },
+  "sonnet-o": {
+    "id": "anthropic/claude-sonnet-4",
+    "name": "Claude Sonnet 4 (OpenRouter)",
+    "provider": "openrouter",
+    "api_key_env": "OPENROUTER_API_KEY",
+    "in": 3.00,
+    "out": 15.00,
+    "description": "Sonnet via OpenRouter. Same as 'sonnet'."
+  },
+  "sonnet-a": {
+    "id": "claude-sonnet-4",
+    "name": "Claude Sonnet 4 (Anthropic API)",
+    "provider": "anthropic",
+    "api_key_env": "ANTHROPIC_API_KEY",
+    "in": 3.00,
+    "out": 15.00,
+    "description": "Sonnet via direct Anthropic API key."
+  },
+  "sonnet-p": {
+    "id": "claude-sonnet-4",
+    "name": "Claude Sonnet 4 (Paid Plan)",
+    "provider": "plan",
+    "api_key_env": "",
+    "in": 0.0,
+    "out": 0.0,
+    "description": "Sonnet via Claude paid plan/subscription. No API key needed."
+  },
+  "opus-o": {
+    "id": "anthropic/claude-opus-4.6",
+    "name": "Claude Opus 4.6 (OpenRouter)",
+    "provider": "openrouter",
+    "api_key_env": "OPENROUTER_API_KEY",
+    "in": 5.00,
+    "out": 25.00,
+    "description": "Opus via OpenRouter. Same as 'opus'."
+  },
+  "opus-a": {
+    "id": "claude-opus-4-6",
+    "name": "Claude Opus 4.6 (Anthropic API)",
+    "provider": "anthropic",
+    "api_key_env": "ANTHROPIC_API_KEY",
+    "in": 5.00,
+    "out": 25.00,
+    "description": "Opus via direct Anthropic API key."
+  },
+  "opus-p": {
+    "id": "claude-opus-4-6",
+    "name": "Claude Opus 4.6 (Paid Plan)",
+    "provider": "plan",
+    "api_key_env": "",
+    "in": 0.0,
+    "out": 0.0,
+    "description": "Opus via Claude paid plan/subscription. No API key needed."
+  },
   "deepseek": {
     "id": "deepseek/deepseek-v3.2",
     "name": "DeepSeek V3.2",
@@ -44,23 +125,43 @@
   },
   "gemini-3": {
     "id": "gemini-3-pro",
-    "name": "Gemini 3 Pro",
+    "name": "Gemini 3 Pro (Paid Plan)",
+    "tool": "gemini",
+    "provider": "plan",
+    "api_key_env": "",
+    "in": 0.0,
+    "out": 0.0,
+    "description": "Gemini 3 Pro via Gemini CLI paid plan/subscription. No API key needed."
+  },
+  "gemini-3-a": {
+    "id": "gemini-3-pro",
+    "name": "Gemini 3 Pro (API)",
     "tool": "gemini",
     "provider": "google",
     "api_key_env": "GOOGLE_API_KEY",
     "in": 0.0,
     "out": 0.0,
-    "description": "Direct Gemini 3 Pro instance via Gemini CLI."
+    "description": "Gemini 3 Pro via Google API key."
   },
   "codex-5": {
+    "id": "",
+    "name": "Codex (Paid Plan)",
+    "tool": "codex",
+    "provider": "plan",
+    "api_key_env": "",
+    "in": 0.0,
+    "out": 0.0,
+    "description": "Codex via ChatGPT paid plan/subscription. No API key needed."
+  },
+  "codex-5-a": {
     "id": "gpt-5.3-codex-high",
-    "name": "Codex 5.3 High",
+    "name": "Codex 5.3 High (API)",
     "tool": "codex",
     "provider": "openai",
     "api_key_env": "OPENAI_API_KEY",
     "in": 0.0,
     "out": 0.0,
-    "description": "Direct Codex 5.3 High instance via Codex CLI."
+    "description": "Codex 5.3 High via OpenAI API key."
   },
   "copilot": {
     "id": "copilot",
