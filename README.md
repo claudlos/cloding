@@ -3,19 +3,58 @@
 **AI coding with any model, any CLI, one command.**
 
 Cloding is a universal wrapper that lets you run Claude Code, Gemini CLI, Codex CLI, OpenCode, or GitHub Copilot CLI with any model — through OpenRouter or direct API keys. Same agentic coding experience, your choice of model and tool.
+░█████╗░██╗░░░░░░█████╗░██████╗░██╗███╗░░██╗░██████╗░
+██╔══██╗██║░░░░░██╔══██╗██╔══██╗██║████╗░██║██╔════╝░
+██║░░╚═╝██║░░░░░██║░░██║██║░░██║██║██╔██╗██║██║░░██╗░
+██║░░██╗██║░░░░░██║░░██║██║░░██║██║██║╚██╗██║██║░░╚██╗
+╚█████╔╝███████╗╚█████╔╝██████╔╝██║██║░╚████║╚██████╔╝
+░╚════╝░╚══════╝░╚════╝░╚═════╝░╚═╝╚═╝░░╚═══╝░╚═════╝
 
-```
-npm install -g cloding
-```
+**Code with any model via OpenRouter.**
+
+Claude Opus 4.6 costs $5/$25 per Mtok.
+Qwen 3 Coder Next costs $0.07/$0.30.
+That's 71x cheaper on input, 83x cheaper on output.
+
+Code with any LLM in a Docker sandbox. Configurable multi-stage code orchestration via Claude Code + OpenRouter.
 
 ## Quick Start
+```bash
+Install Claude Code
 
+macOS, Linux, WSL:
+curl -fsSL https://claude.ai/install.sh | bash
+
+Windows PowerShell:
+irm https://claude.ai/install.ps1 | iex
+
+npm install -g @anthropic-ai/claude-code
+
+Install Cloding
+
+npm install -g cloding
+export OPENROUTER_API_KEY=sk-or-v1-your-key-here
+cloding
+```
+
+Runs Claude Code with Qwen 3 Coder Next. $0.07/Mtok input vs $5/Mtok.
+
+Switch models anytime:
 ```bash
 export OPENROUTER_API_KEY=sk-or-v1-your-key-here
 cloding                    # Start coding with Qwen 3 Coder ($0.12/Mtok)
 ```
 
 That's it. You're running Claude Code with Qwen at 42x cheaper input cost than Claude Opus.
+cloding -m sonnet          # Claude Sonnet 4.6
+cloding -m qwen            # Qwen 3 Coder Next
+cloding --list-models      # see all options + pricing
+```
+
+Run sandboxed in Docker:
+```bash
+cloding docker build && cloding docker shell
+```
 
 ## How It Works
 
@@ -109,6 +148,16 @@ Docker run/shell options:
 | `--cpus` | 1.0 | Container CPU limit |
 | `--name` | auto | Custom container name |
 | `--no-rm` | false | Don't auto-remove container on exit |
+| Shortcut | Model | Input $/Mtok | Output $/Mtok | vs Claude Code |
+|----------|-------|-------------|---------------|----------------|
+| `qwen` | Qwen 3 Coder Next | $0.07 | $0.30 | **71x cheaper** |
+| `deepseek` | DeepSeek Coder V3 | $0.14 | $0.28 | **36x cheaper** |
+| `haiku` | Claude Haiku 4.5 | $0.80 | $4.00 | 6x cheaper |
+| `gemini` | Gemini 2.5 Pro | $1.25 | $10.00 | 4x cheaper |
+| `sonnet` | Claude Sonnet 4 | $3.00 | $15.00 | 1.7x cheaper |
+| `opus` | Claude Opus 4.6 | $15.00 | $75.00 | 3x more expensive |
+
+## Docker Mode
 
 ### Pipeline Mode
 
