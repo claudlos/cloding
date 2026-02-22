@@ -1,8 +1,9 @@
-# cloding
+# Cloding
 
-**AI coding with any model, any CLI, one command.**
+**Agentic Engineering Amplified**
 
-Cloding is a universal wrapper that lets you run Claude Code, Gemini CLI, Codex CLI, OpenCode, or GitHub Copilot CLI with any model — through OpenRouter or direct API keys. Same agentic coding experience, your choice of model and tool.
+Cloding is a universal wrapper that lets you run Claude Code, Gemini CLI, Codex CLI, OpenCode, or GitHub Copilot CLI — use OpenRouter, Direct API keys, or link to your paid plan.
+
 ░█████╗░██╗░░░░░░█████╗░██████╗░██╗███╗░░██╗░██████╗░
 ██╔══██╗██║░░░░░██╔══██╗██╔══██╗██║████╗░██║██╔════╝░
 ██║░░╚═╝██║░░░░░██║░░██║██║░░██║██║██╔██╗██║██║░░██╗░
@@ -10,13 +11,12 @@ Cloding is a universal wrapper that lets you run Claude Code, Gemini CLI, Codex 
 ╚█████╔╝███████╗╚█████╔╝██████╔╝██║██║░╚████║╚██████╔╝
 ░╚════╝░╚══════╝░╚════╝░╚═════╝░╚═╝╚═╝░░╚═══╝░╚═════╝
 
-**Code with any model via OpenRouter.**
+**Code with any LLM in a Docker sandbox. Configurable multi-stage code orchestration**
 
 Claude Opus 4.6 costs $5/$25 per Mtok.
-Qwen 3 Coder Next costs $0.07/$0.30.
-That's 71x cheaper on input, 83x cheaper on output.
+Qwen 3 Coder Next costs $0.12/$0.75 per Mtok.
+That's 42x cheaper on input, 33x cheaper on output.
 
-Code with any LLM in a Docker sandbox. Configurable multi-stage code orchestration via Claude Code + OpenRouter.
 
 ## Quick Start
 ```bash
