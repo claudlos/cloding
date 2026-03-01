@@ -749,6 +749,48 @@ async function handleSetup(args) {
     (failed > 0 ? `, \x1b[31m${failed} failed\x1b[0m` : "") +
     "\n"
   );
+
+  // Auto-setup WSL if on Windows to ensure codex works properly
+  if (process.platform === "win32" && !checkOnly && failed === 0) {
+    try {
+      const wslCheck = spawnSync("wsl", ["--status"], { stdio: "ignore", timeout: 2000 });
+      if (wslCheck.status === 0) {
+        console.log("  \x1b[36m⚡ Windows Subsystem for Linux (WSL) detected.\x1b[0m");
+        console.log("  Running automatic setup in WSL (this may take a moment)...");
+
+        let installCmd = "npm install -g @openai/codex cloding 2>/dev/null && cloding setup";
+
+        // Check if node is installed in WSL
+        const nodeCheck = spawnSync("wsl", ["bash", "-c", "command -v node"], { stdio: "ignore", timeout: 2000 });
+        if (nodeCheck.status !== 0) {
+          console.log("  \x1b[33mNode.js not found in WSL. Installing...\x1b[0m");
+          // Install Node.js 22.x on Debian/Ubuntu based WSL and then install the tools
+          installCmd = "curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs && sudo npm install -g @openai/codex cloding && cloding setup";
+        }
+
+        const wslResult = spawnSync(
+          "wsl",
+          [
+            "bash",
+            "-c",
+            installCmd,
+          ],
+          { stdio: "inherit" }
+        );
+
+        if (wslResult.status === 0) {
+          console.log("    \x1b[32m✓\x1b[0m WSL setup completed successfully\n");
+        } else {
+          console.log("    \x1b[31m✗\x1b[0m WSL setup failed or requires manual permissions.\n");
+          console.log("      You can run the setup manually inside your WSL terminal:");
+          console.log("      npm install -g @openai/codex cloding && cloding setup\n");
+        }
+      }
+    } catch {
+      // Ignore WSL detection errors
+    }
+  }
+
   process.exit(failed > 0 ? 1 : 0);
 }
 
@@ -968,8 +1010,11 @@ function dockerRun(dockerArgs, models, interactive) {
     if (apiKeyEnv === "OPENROUTER_API_KEY") {
       console.error(
         "Error: OPENROUTER_API_KEY not set.\n\n" +
-        "Get your key at https://openrouter.ai/keys\n" +
-        `Then: ${envSetHint("OPENROUTER_API_KEY", "sk-or-v1-...")}\n`
+        "Options:\n" +
+        "  1. Set OpenRouter key: " + envSetHint("OPENROUTER_API_KEY", "sk-or-v1-...") + "\n" +
+        "       Get one at https://openrouter.ai/keys\n" +
+        "  2. Use Anthropic API key: cloding docker run -m sonnet-a \"...\"\n" +
+        "       (Requires: " + envSetHint("ANTHROPIC_API_KEY", "sk-ant-...") + ")\n"
       );
     } else {
       console.error(
@@ -1078,6 +1123,7 @@ function dockerRun(dockerArgs, models, interactive) {
     envVars.push(`OPENCODE_API_KEY=${apiKey}`);
   } else if (tool === "codex") {
     if (apiKey) envVars.push(`OPENAI_API_KEY=${apiKey}`);
+    envVars.push("NPM_CONFIG_UPDATE_NOTIFIER=false");
   } else if (tool === "copilot" && apiKey) {
     envVars.push(`GITHUB_TOKEN=${apiKey}`);
   }
@@ -1506,10 +1552,22 @@ function main() {
   const apiKey = isPlanProvider ? "" : process.env[apiKeyEnv];
   const usingLinkedCliAuth = !apiKey && canUseCliLinkedAuth(tool);
   if (!apiKey && !usingLinkedCliAuth && !isPlanProvider) {
-    console.error(
-      `Error: ${apiKeyEnv} not set.\n\n` +
-      `Please set it:  ${envSetHint(apiKeyEnv, "...")}`
-    );
+    if (apiKeyEnv === "OPENROUTER_API_KEY") {
+      console.error(
+        `Error: OPENROUTER_API_KEY not set (required for default models).\n\n` +
+        `Options:\n` +
+        `  1. Set OpenRouter key: ${envSetHint("OPENROUTER_API_KEY", "sk-or-v1-...")}\n` +
+        `       Get one at https://openrouter.ai/keys\n` +
+        `  2. Use Claude paid plan:   cloding -m sonnet-p\n` +
+        `  3. Use Anthropic API key:  cloding -m sonnet-a\n` +
+        `       (Requires: ${envSetHint("ANTHROPIC_API_KEY", "sk-ant-...")})\n`
+      );
+    } else {
+      console.error(
+        `Error: ${apiKeyEnv} not set.\n\n` +
+        `Please set it:  ${envSetHint(apiKeyEnv, "...")}`
+      );
+    }
     process.exit(1);
   }
 
@@ -1544,6 +1602,8 @@ function main() {
     if (apiKey) {
       runEnv.OPENAI_API_KEY = apiKey;
     }
+    // Prevent codex cli update prompt loop
+    runEnv.NPM_CONFIG_UPDATE_NOTIFIER = "false";
   } else if (tool === "copilot") {
     if (apiKey) {
       runEnv.GITHUB_TOKEN = apiKey;
@@ -1626,6 +1686,7 @@ function main() {
     // Add common ones just in case (only if they exist)
     if (runEnv.OPENAI_API_KEY) wslenv.push("OPENAI_API_KEY/u");
     if (runEnv.OPENROUTER_API_KEY) wslenv.push("OPENROUTER_API_KEY/u");
+    wslenv.push("NPM_CONFIG_UPDATE_NOTIFIER/u");
 
     if (process.env.WSLENV) {
       runEnv.WSLENV = `${process.env.WSLENV}:${wslenv.join(":")}`;

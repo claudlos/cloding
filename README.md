@@ -4,12 +4,7 @@
 
 Cloding is a universal wrapper that lets you run Claude Code, Gemini CLI, Codex CLI, OpenCode, or GitHub Copilot CLI — use OpenRouter, Direct API keys, or link to your paid plan.
 
-░█████╗░██╗░░░░░░█████╗░██████╗░██╗███╗░░██╗░██████╗░
-██╔══██╗██║░░░░░██╔══██╗██╔══██╗██║████╗░██║██╔════╝░
-██║░░╚═╝██║░░░░░██║░░██║██║░░██║██║██╔██╗██║██║░░██╗░
-██║░░██╗██║░░░░░██║░░██║██║░░██║██║██║╚██╗██║██║░░╚██╗
-╚█████╔╝███████╗╚█████╔╝██████╔╝██║██║░╚████║╚██████╔╝
-░╚════╝░╚══════╝░╚════╝░╚═════╝░╚═╝╚═╝░░╚═══╝░╚═════╝
+![Cloding Terminal Demo](docs/cloding_demo.webp)
 
 ---
 
