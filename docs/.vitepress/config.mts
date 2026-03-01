@@ -47,6 +47,7 @@ export default defineConfig({
         items: [
           { text: 'CLI Reference', link: '/cli' },
           { text: 'Custom Models', link: '/custom-models' },
+          { text: 'Troubleshooting', link: '/troubleshooting' },
         ]
       }
     ],

@@ -62,15 +62,20 @@ function forwardSignals(child) {
 // .env loader (no dependencies)
 // ──────────────────────────────────────────────
 function loadEnvFile() {
-  // Search for .env in: cwd, then user home, then cloding package root
+  // Search for .env files in decreasing order of priority. We load them in
+  // reverse so that highest priority (cwd/.env) overwrites global configs.
   const candidates = [
-    path.join(process.cwd(), ".env"),
-    path.join(os.homedir(), ".env"),
     path.join(__dirname, "..", ".env"),
+    path.join(os.homedir(), ".clodingrc"),
+    path.join(os.homedir(), ".env"),
+    path.join(process.cwd(), ".env"),
   ];
+
+  let loadedPaths = [];
 
   for (const envPath of candidates) {
     if (fs.existsSync(envPath)) {
+      loadedPaths.push(envPath);
       const lines = fs.readFileSync(envPath, "utf8").split("\n");
       for (const line of lines) {
         const trimmed = line.trim();
@@ -86,16 +91,15 @@ function loadEnvFile() {
         ) {
           val = val.slice(1, -1);
         }
-        // Don't override existing env vars (check existence, not truthiness —
-        // empty string values like ANTHROPIC_API_KEY="" must be preserved)
+        // Overwrite existing parsed env vars from earlier (lower-priority) files,
+        // but don't overwrite true environment variables passed to the process.
         if (!(key in process.env)) {
           process.env[key] = val;
         }
       }
-      return envPath;
     }
   }
-  return null;
+  return loadedPaths.length > 0 ? loadedPaths : null;
 }
 
 // ──────────────────────────────────────────────
@@ -152,6 +156,8 @@ function parseArgs(argv) {
     docker: false,
     dockerSubcommand: null,
     dockerArgs: [],
+    completion: false,
+    listModelsRaw: false,
     claudeArgs: [], // passthrough args for claude CLI
   };
 
@@ -178,6 +184,11 @@ function parseArgs(argv) {
       break;
     }
 
+    if (arg === "completion") {
+      args.completion = true;
+      break;
+    }
+
     switch (arg) {
       case "-m":
       case "--model":
@@ -197,6 +208,9 @@ function parseArgs(argv) {
         break;
       case "--list-models":
         args.listModels = true;
+        break;
+      case "--list-models-raw":
+        args.listModelsRaw = true;
         break;
       case "-v":
       case "--version":
@@ -236,6 +250,23 @@ function printVersion() {
   }
 }
 
+function printCompletionScript() {
+  console.log(`_cloding_completion() {
+    local cur prev
+    cur="\${COMP_WORDS[COMP_CWORD]}"
+    prev="\${COMP_WORDS[COMP_CWORD-1]}"
+
+    if [[ "$prev" == "-m" || "$prev" == "--model" ]]; then
+        COMPREPLY=( $(compgen -W "$(cloding --list-models-raw 2>/dev/null)" -- "$cur") )
+        return 0
+    fi
+    
+    COMPREPLY=( $(compgen -W "docker pipeline setup completion --list-models -h -v -m -p" -- "$cur") )
+}
+complete -F _cloding_completion cloding
+`);
+}
+
 function printHelp() {
   console.log(`
 cloding — Claude Code with any model via OpenRouter
@@ -248,6 +279,7 @@ USAGE:
   cloding setup                      Detect and install all CLI tools
   cloding pipeline "Add auth"        Run the full pipeline (requires Python)
   cloding docker <command>           Docker container management
+  cloding completion                 Print bash/zsh completion script
 
 OPTIONS:
   -m, --model <name|id>   Model shortcut or full OpenRouter model ID
@@ -1389,6 +1421,16 @@ function main() {
 
   if (args.listModels) {
     printModels(models);
+    process.exit(0);
+  }
+
+  if (args.listModelsRaw) {
+    console.log(Object.keys(models).join(" "));
+    process.exit(0);
+  }
+
+  if (args.completion) {
+    printCompletionScript();
     process.exit(0);
   }
 

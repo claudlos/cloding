@@ -11,26 +11,55 @@ Cloding is a universal wrapper that lets you run Claude Code, Gemini CLI, Codex 
 ╚█████╔╝███████╗╚█████╔╝██████╔╝██║██║░╚████║╚██████╔╝
 ░╚════╝░╚══════╝░╚════╝░╚═════╝░╚═╝╚═╝░░╚═══╝░╚═════╝
 
+---
+
 **Code with any LLM in a Docker sandbox. Configurable multi-stage code orchestration**
 
-Claude Opus 4.6 costs $5/$25 per Mtok.
-Qwen 3 Coder Next costs $0.12/$0.75 per Mtok.
-That's 42x cheaper on input, 33x cheaper on output.
+Claude Opus 4.6 costs $5/$25 per Mtok.  
+Qwen 3 Coder Next costs $0.12/$0.75 per Mtok.  
+*That's 42x cheaper on input, 33x cheaper on output.*
 
 Run multiple coding CLIs from one command, with model shortcuts and optional pipeline orchestration.
 
-Supported tools:
+**Supported tools:**
 - Claude Code (`claude`)
 - Gemini CLI (`gemini`)
 - Codex CLI (`codex`)
 - GitHub Copilot CLI (`copilot`)
 - OpenCode (`opencode`, via custom model entries)
 
+---
+
+## Capabilities
+
+Cloding enhances your development workflow through:
+
+### Universal Access
+Seamlessly switch between leading AI coding assistants using a single, unified interface.
+
+### Cost Control
+Leverage deeply discounted models via OpenRouter while maintaining high performance. Avoid expensive subscription lock-ins.
+
+### Container Security
+Run AI-generated code safely. The built-in Docker mode executes tools in an isolated sandbox with configurable CPU/memory limits, preventing untrusted code from accessing your host system.
+
+### Advanced Automation
+The Python-based orchestrator enables multi-stage workflows:
+- **Plan:** Analyze requirements and design solutions.
+- **Explore:** Gather context from large codebases.
+- **Code:** Implement the planned changes.
+- **Review:** Automatically verify and refine the code.
+
+### Extensive Documentation
+Read our comprehensive [documentation site](https://claudlos.github.io/cloding/) for in-depth walkthroughs and a dedicated [Troubleshooting guide](https://claudlos.github.io/cloding/troubleshooting).
+
+---
+
 ## Installation
 
-### Standalone Binary (recommended)
+### Standalone Binary (Recommended)
 
-No Node.js required — download a single binary:
+No Node.js required — download a single standalone binary:
 
 **macOS / Linux:**
 
@@ -46,33 +75,50 @@ irm https://raw.githubusercontent.com/claudlos/cloding/master/install.ps1 | iex
 
 ### npm
 
-If you already have Node.js 18+:
+If you already have Node.js 18+ installed:
 
 ```bash
 npm install -g cloding
 ```
 
+**Installing Node.js 18+**  
+If you don't have Node.js installed, you can quickly install the latest version using the following commands:
+
+**macOS / Linux (via nvm):**
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+nvm install node
+```
+
+**Windows (PowerShell via winget):**
+```powershell
+winget install OpenJS.NodeJS
+```
+*(Alternatively, you can download the official installer directly from [nodejs.org](https://nodejs.org/))*
+
+---
+
 ## Quick Start
 
 ```bash
-# Set your OpenRouter API key
+# 1. Set your OpenRouter API key
 export OPENROUTER_API_KEY=sk-or-v1-your-key-here
 
-# Install all CLI tools (Claude Code, Gemini, Codex, Copilot, OpenCode)
+# 2. Install all CLI tools (Claude Code, Gemini, Codex, Copilot, OpenCode)
 cloding setup
 
-# Start coding
+# 3. Start coding!
 cloding
 ```
 
-Basic usage:
+### Basic usage:
 
 ```bash
 cloding                              # interactive (default: qwen)
-cloding -m sonnet                    # choose shortcut
+cloding -m sonnet                    # choose a specific shortcut
 cloding -p "fix failing tests"       # one-shot prompt
 cloding --list-models                # list shortcuts and prices
-cloding -h                           # help
+cloding -h                           # view help
 ```
 
 ## Setup Command
