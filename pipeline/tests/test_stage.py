@@ -13,7 +13,7 @@ from cloding.pipeline.stage import (
     LintStage,
     PlanStage,
     ReviewStage,
-    TestStage,
+    TestingStage,
     VerifyStage,
     create_stage,
     STAGE_CLASSES,
@@ -182,7 +182,7 @@ class TestCreateStage:
     def test_creates_test_stage(self):
         config = _make_stage_config(name="test", prompt_file="prompts/test.txt")
         stage = create_stage(config, _make_model())
-        assert isinstance(stage, TestStage)
+        assert isinstance(stage, TestingStage)
 
     def test_creates_lint_stage(self):
         config = _make_stage_config(name="lint", prompt_file="prompts/lint.txt")
@@ -260,7 +260,7 @@ class TestBuildPrompt:
 
     async def test_test_stage_prompt(self):
         config = _make_stage_config(name="test", prompt_file="prompts/test.txt")
-        stage = TestStage(config=config, model_config=_make_model(), prompts_dir="/nonexistent")
+        stage = TestingStage(config=config, model_config=_make_model(), prompts_dir="/nonexistent")
         state = PipelineState(user_request="test")
         prompt = await stage.build_prompt(state)
         assert "test suite" in prompt
@@ -268,7 +268,7 @@ class TestBuildPrompt:
 
     async def test_test_stage_with_feedback(self):
         config = _make_stage_config(name="test", prompt_file="prompts/test.txt")
-        stage = TestStage(config=config, model_config=_make_model(), prompts_dir="/nonexistent")
+        stage = TestingStage(config=config, model_config=_make_model(), prompts_dir="/nonexistent")
         state = PipelineState(
             user_request="test",
             review_feedback="3 tests failing",
