@@ -315,7 +315,7 @@ function printModels(models) {
     const savings = m.out > 0 ? Math.round(opusOut / m.out) : 0;
     const savingsStr =
       shortcut === "opus" ? "    baseline" :
-      savings > 0 ? `    ${savings}x cheaper` : "    n/a";
+        savings > 0 ? `    ${savings}x cheaper` : "    n/a";
     console.log(
       `  ${shortcut.padEnd(11)} ${m.name.padEnd(24)} $${m.in.toFixed(2).padStart(6)}         $${m.out.toFixed(2).padStart(6)}${savingsStr}`
     );
@@ -801,9 +801,9 @@ function dockerBuild() {
   if (!dockerDir) {
     console.error(
       "Error: Dockerfile not found.\n\n" +
-        "Docker mode requires the full repository (not the npm package).\n" +
-        "  git clone https://github.com/claudlos/cloding\n" +
-        "  cd cloding && cloding docker build\n"
+      "Docker mode requires the full repository (not the npm package).\n" +
+      "  git clone https://github.com/claudlos/cloding\n" +
+      "  cd cloding && cloding docker build\n"
     );
     process.exit(1);
   }
@@ -906,13 +906,13 @@ function dockerRun(dockerArgs, models, interactive) {
   if (!interactive && !prompt) {
     const modelHint = modelArg
       ? "\nDid you mean:\n" +
-        `  cloding docker run -m ${modelArg} "your prompt here"\n` +
-        `  cloding docker shell -m ${modelArg}\n`
+      `  cloding docker run -m ${modelArg} "your prompt here"\n` +
+      `  cloding docker shell -m ${modelArg}\n`
       : "";
     console.error(
       'Error: No prompt provided.\n\n' +
-        '  Usage: cloding docker run "your prompt here"\n' +
-        modelHint
+      '  Usage: cloding docker run "your prompt here"\n' +
+      modelHint
     );
     process.exit(1);
   }
@@ -920,7 +920,7 @@ function dockerRun(dockerArgs, models, interactive) {
   if (!dockerImageExists()) {
     console.error(
       `Error: Docker image '${DOCKER_IMAGE}' not found.\n\n` +
-        "  Build it first: cloding docker build\n"
+      "  Build it first: cloding docker build\n"
     );
     process.exit(1);
   }
@@ -936,18 +936,17 @@ function dockerRun(dockerArgs, models, interactive) {
     if (apiKeyEnv === "OPENROUTER_API_KEY") {
       console.error(
         "Error: OPENROUTER_API_KEY not set.\n\n" +
-          "Get your key at https://openrouter.ai/keys\n" +
-          `Then: ${envSetHint("OPENROUTER_API_KEY", "sk-or-v1-...")}\n`
+        "Get your key at https://openrouter.ai/keys\n" +
+        `Then: ${envSetHint("OPENROUTER_API_KEY", "sk-or-v1-...")}\n`
       );
     } else {
       console.error(
         `Error: ${apiKeyEnv} not set.\n\n` +
-          `Please set it: ${envSetHint(apiKeyEnv, "...")}`
+        `Please set it: ${envSetHint(apiKeyEnv, "...")}`
       );
     }
     process.exit(1);
   }
-
   // Block plan-mode tools in Docker: subscription auth (OAuth tokens, system
   // credential stores) cannot be passed into containers. Suggest alternatives.
   if (isPlanProvider) {
@@ -976,11 +975,11 @@ function dockerRun(dockerArgs, models, interactive) {
     );
     console.error(
       `Error: Plan/subscription mode (${modelArg}) cannot authenticate inside Docker.\n\n` +
-        `Subscription auth tokens are stored on your host (system credential\n` +
-        `store, browser sessions, etc.) and cannot be passed into containers.\n\n` +
-        `Alternatives:\n` +
-        altLines.join("\n") +
-        "\n"
+      `Subscription auth tokens are stored on your host (system credential\n` +
+      `store, browser sessions, etc.) and cannot be passed into containers.\n\n` +
+      `Alternatives:\n` +
+      altLines.join("\n") +
+      "\n"
     );
     process.exit(1);
   }
@@ -1156,7 +1155,7 @@ function dockerRun(dockerArgs, models, interactive) {
 
   // Clean up env file on exit (contains API key)
   function cleanupEnvFile() {
-    try { fs.unlinkSync(envFilePath); } catch {}
+    try { fs.unlinkSync(envFilePath); } catch { }
   }
 
   // Spawn docker — uses argument array (no shell interpretation)
@@ -1322,8 +1321,8 @@ function handleDocker(args) {
   if (!dockerAvailable()) {
     console.error(
       "Error: Docker not found.\n\n" +
-        "Install Docker Desktop:\n" +
-        "  https://docs.docker.com/get-docker/\n"
+      "Install Docker Desktop:\n" +
+      "  https://docs.docker.com/get-docker/\n"
     );
     process.exit(1);
   }
@@ -1412,9 +1411,9 @@ function main() {
     if (!fs.existsSync(pipelineDir)) {
       console.error(
         "Error: Pipeline not found.\n\n" +
-          "Pipeline mode requires the full repository (not the npm package).\n" +
-          "  git clone https://github.com/claudlos/cloding\n" +
-          "  cd cloding/pipeline && pip install -e .\n"
+        "Pipeline mode requires the full repository (not the npm package).\n" +
+        "  git clone https://github.com/claudlos/cloding\n" +
+        "  cd cloding/pipeline && pip install -e .\n"
       );
       process.exit(1);
     }
@@ -1452,8 +1451,8 @@ function main() {
     if (nodeMajor < 24) {
       console.error(
         `Error: Copilot CLI requires Node.js v24+.\n` +
-          `Current Node version: v${process.versions.node}\n\n` +
-          "Upgrade Node, then run: cloding -m copilot"
+        `Current Node version: v${process.versions.node}\n\n` +
+        "Upgrade Node, then run: cloding -m copilot"
       );
       process.exit(1);
     }
@@ -1467,7 +1466,7 @@ function main() {
   if (!apiKey && !usingLinkedCliAuth && !isPlanProvider) {
     console.error(
       `Error: ${apiKeyEnv} not set.\n\n` +
-        `Please set it:  ${envSetHint(apiKeyEnv, "...")}`
+      `Please set it:  ${envSetHint(apiKeyEnv, "...")}`
     );
     process.exit(1);
   }
@@ -1585,7 +1584,7 @@ function main() {
     // Add common ones just in case (only if they exist)
     if (runEnv.OPENAI_API_KEY) wslenv.push("OPENAI_API_KEY/u");
     if (runEnv.OPENROUTER_API_KEY) wslenv.push("OPENROUTER_API_KEY/u");
-    
+
     if (process.env.WSLENV) {
       runEnv.WSLENV = `${process.env.WSLENV}:${wslenv.join(":")}`;
     } else {
@@ -1628,13 +1627,13 @@ function main() {
       if (tool === "copilot") {
         console.error(
           "Error: 'copilot' command not found.\n\n" +
-            "Install with: npm i -g @github/copilot\n" +
-            "Then ensure your npm global bin is in PATH."
+          "Install with: npm i -g @github/copilot\n" +
+          "Then ensure your npm global bin is in PATH."
         );
       } else {
         console.error(
           `Error: '${tool}' command not found.\n\n` +
-            `Install ${tool} first.`
+          `Install ${tool} first.`
         );
       }
     } else {

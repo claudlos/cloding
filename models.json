@@ -154,8 +154,8 @@
     "description": "Codex via ChatGPT paid plan/subscription. No API key needed."
   },
   "codex-5-a": {
-    "id": "gpt-5.2-codex",
-    "name": "Codex (API)",
+    "id": "gpt-5.3-codex-high",
+    "name": "Codex 5.3 High (API)",
     "tool": "codex",
     "provider": "openai",
     "api_key_env": "OPENAI_API_KEY",

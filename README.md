@@ -17,6 +17,15 @@ Claude Opus 4.6 costs $5/$25 per Mtok.
 Qwen 3 Coder Next costs $0.12/$0.75 per Mtok.
 That's 42x cheaper on input, 33x cheaper on output.
 
+Run multiple coding CLIs from one command, with model shortcuts and optional pipeline orchestration.
+
+Supported tools:
+- Claude Code (`claude`)
+- Gemini CLI (`gemini`)
+- Codex CLI (`codex`)
+- GitHub Copilot CLI (`copilot`)
+- OpenCode (`opencode`, via custom model entries)
+
 ## Installation
 
 ### Standalone Binary (recommended)
@@ -198,19 +207,12 @@ cloding -m meta-llama/llama-4-scout
 cloding -m qwen
 cloding -m sonnet-a -p "review this file"   # direct Anthropic API
 cloding -m opus-p                            # use Claude paid plan
-cloding -m codex-5                            # use OpenAI paid plan
-cloding -m copilot                            # use GitHub paid plan
+cloding -m codex-5 "implement retry logic"
+cloding -m codex-5-a "implement retry logic"
+cloding -m copilot
 ```
 
 Unknown flags are passed through to the underlying CLI.
-
-### Setup
-
-```bash
-cloding setup              # detect + install missing CLI tools
-cloding setup --check      # status report only
-cloding setup --force      # reinstall all tools
-```
 
 ### Docker Mode
 
@@ -276,7 +278,6 @@ Pipeline flags:
 > **Tip:** Run `cloding setup` to automatically detect and install all CLI tools.
 
 ## Custom Models
-
 Add entries in `models.json`:
 
 ```json
