@@ -20,7 +20,7 @@ class TestWriteTaskFile:
         )
         _write_task_file(tmp_path, task)
 
-        filepath = tmp_path / "TASK-1.MD"
+        filepath = tmp_path / "TASK-1.md"
         assert filepath.exists()
         content = filepath.read_text(encoding="utf-8")
         assert "Implement login" in content
@@ -35,7 +35,7 @@ class TestWriteTaskFile:
         )
         _write_task_file(tmp_path, task)
 
-        filepath = tmp_path / "TASK-2.MD"
+        filepath = tmp_path / "TASK-2.md"
         content = filepath.read_text(encoding="utf-8")
         assert "Use pytest framework" in content
 
@@ -43,7 +43,7 @@ class TestWriteTaskFile:
         task = CodingTask(task_id="task-3", description="Refactor")
         _write_task_file(tmp_path, task)
 
-        filepath = tmp_path / "TASK-3.MD"
+        filepath = tmp_path / "TASK-3.md"
         content = filepath.read_text(encoding="utf-8")
         assert "Refer to PLAN.md" in content
 
@@ -51,7 +51,7 @@ class TestWriteTaskFile:
         task = CodingTask(task_id="task-4", description="Quick fix")
         _write_task_file(tmp_path, task)
 
-        filepath = tmp_path / "TASK-4.MD"
+        filepath = tmp_path / "TASK-4.md"
         content = filepath.read_text(encoding="utf-8")
         assert "See description" in content
 
@@ -234,8 +234,8 @@ class TestRunTasksParallel:
             max_parallel=2,
         )
         # Task files should be cleaned up after execution
-        assert not (tmp_path / "TASK-1.MD").exists()
-        assert not (tmp_path / "TASK-2.MD").exists()
+        assert not (tmp_path / "TASK-1.md").exists()
+        assert not (tmp_path / "TASK-2.md").exists()
 
     async def test_semaphore_limits_concurrency(self, tmp_path):
         """With max_parallel=1, tasks run sequentially."""

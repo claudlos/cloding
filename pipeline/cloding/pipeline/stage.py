@@ -206,7 +206,7 @@ class ReviewStage(Stage):
         return "\n".join(parts)
 
 
-class TestStage(Stage):
+class TestingStage(Stage):
     """Runs the project test suite, reads failures, and fixes code until green.
 
     The agent executes tests (pytest, npm test, etc.), reads output,
@@ -291,7 +291,7 @@ STAGE_CLASSES: dict[str, type[Stage]] = {
     "explore": ExploreStage,
     "code": CodeStage,
     "review": ReviewStage,
-    "test": TestStage,
+    "test": TestingStage,
     "lint": LintStage,
     "verify": VerifyStage,
 }
