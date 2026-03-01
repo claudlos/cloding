@@ -78,7 +78,7 @@ irm https://raw.githubusercontent.com/claudlos/cloding/master/install.ps1 | iex
 If you already have Node.js 18+ installed:
 
 ```bash
-npm install -g cloding
+npm i -g cloding
 ```
 
 **Installing Node.js 18+**  

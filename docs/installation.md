@@ -23,7 +23,7 @@ The installer automatically detects your OS and architecture, downloads the late
 If you already have Node.js 18+:
 
 ```bash
-npm install -g cloding
+npm i -g cloding
 ```
 
 ## Set up CLI tools
